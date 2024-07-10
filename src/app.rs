@@ -18,6 +18,7 @@ use ratatui::{
 };
 use std::{
     io::{self, Stdout},
+    iter::Once,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -102,9 +103,7 @@ impl App {
             Message::Once(OnceOperation::JumpToContentView) => {
                 self.focus_state = FocusState::Viewer
             }
-            Message::MultipleTimes(MultipleTimesOperation::Filtering { query: _ }) => {
-                self.focus_state = FocusState::Filer
-            }
+            Message::Once(OnceOperation::JumpToFiler) => self.focus_state = FocusState::Filer,
             _ => {}
         }
 

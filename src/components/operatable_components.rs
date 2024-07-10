@@ -25,6 +25,7 @@ pub enum OnceOperation {
         file: String,
     },
     JumpToContentView,
+    JumpToFiler,
 }
 
 #[derive(Clone, Copy, Debug)]

@@ -34,6 +34,7 @@ impl Filer {
     fn _handle_message(&mut self, message: &Message) -> Message {
         match message {
             Message::Once(OnceOperation::JumpToContentView) => self.focus = Focus::OFF,
+            Message::Once(OnceOperation::JumpToFiler) => self.focus = Focus::ON,
             Message::Once(OnceOperation::SetUp { repository }) => {
                 let binding = repository.clone();
                 let mut repository = binding.lock().unwrap();
@@ -42,7 +43,6 @@ impl Filer {
                 self.results = items;
             }
             Message::MultipleTimes(MultipleTimesOperation::Filtering { query }) => {
-                self.focus = Focus::ON;
                 self.query = query.to_owned();
                 self.results = self
                     .items

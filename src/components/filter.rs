@@ -77,9 +77,7 @@ impl Filter {
 
     fn _handle_message(&mut self, message: &Message) -> Message {
         match message {
-            Message::MultipleTimes(MultipleTimesOperation::Filtering { query: _ }) => {
-                self.focus = Focus::OFF
-            }
+            Message::Once(OnceOperation::JumpToFiler) => self.focus = Focus::OFF,
             Message::Once(operation) => match operation {
                 OnceOperation::SetUp { repository: _ } => self.focus = Focus::ON,
                 _ => {}
@@ -111,13 +109,19 @@ impl OperatableComponent for Filter {
 
     fn process_events(&mut self, events: crossterm::event::KeyCode) -> Message {
         match events {
-            KeyCode::Char(char) => self.enter_char(char),
-            KeyCode::Enter => {
+            KeyCode::Char(char) => {
+                self.enter_char(char);
                 return Message::MultipleTimes(MultipleTimesOperation::Filtering {
                     query: self.input.to_owned(),
-                })
+                });
             }
-            KeyCode::Backspace => self.delete_char(),
+            KeyCode::Enter => return Message::Once(OnceOperation::JumpToFiler),
+            KeyCode::Backspace => {
+                self.delete_char();
+                return Message::MultipleTimes(MultipleTimesOperation::Filtering {
+                    query: self.input.to_owned(),
+                });
+            }
             _ => {}
         }
         Message::NoAction
