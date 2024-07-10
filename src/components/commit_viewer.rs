@@ -5,7 +5,9 @@ use ratatui::{
     Frame,
 };
 
-use super::operatable_components::{Focus, Message, OnceOperation, OperatableComponent};
+use super::operatable_components::{
+    Focus, Message, MultipleTimesOperation, OnceOperation, OperatableComponent,
+};
 
 pub struct CommitViewer {
     focus: Focus,
@@ -22,18 +24,11 @@ impl CommitViewer {
 
     fn _handle_message(&mut self, message: &Message) -> Message {
         match message {
-            Message::MultipleTimes(_) => {}
-            Message::Once(operation) => {
-                match operation {
-                    OnceOperation::SetUp { repository } => {
-                        // set commit
-                        let binding = repository.clone();
-                        let mut repository = binding.lock().unwrap();
-                        let (commit_id, commit_message) = repository.current_commit().unwrap();
-                        self.content = format!("{}: {}", commit_id, commit_message);
-                    }
-                    _ => {}
-                }
+            Message::MultipleTimes(MultipleTimesOperation::SetUp { repository }) => {
+                let binding = repository.clone();
+                let mut repository = binding.lock().unwrap();
+                let (commit_id, commit_message) = repository.current_commit().unwrap();
+                self.content = format!("{}: {}", commit_id, commit_message);
             }
             _ => {}
         }

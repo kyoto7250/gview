@@ -1,9 +1,8 @@
 use std::sync::{Arc, Mutex};
 
+use crate::repository::RepositoryInfo;
 use crossterm::event::KeyCode;
 use ratatui::{layout::Rect, Frame};
-
-use crate::repository::RepositoryInfo;
 
 // rust enum pass the operation command
 pub enum Message {
@@ -14,16 +13,16 @@ pub enum Message {
 }
 
 pub enum MultipleTimesOperation {
-    Filtering { query: String },
-}
-
-pub enum OnceOperation {
+    Filtering {
+        query: String,
+    },
     SetUp {
         repository: Arc<Mutex<RepositoryInfo>>,
     },
-    ShowFile {
-        file: String,
-    },
+}
+
+pub enum OnceOperation {
+    ShowFile { file: String },
     JumpToContentView,
     JumpToFiler,
 }

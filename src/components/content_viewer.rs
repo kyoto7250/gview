@@ -19,6 +19,7 @@ pub struct ContentViewer {
     content: String,
     context_size: usize,
     scroll_position: usize,
+    height: usize,
     repository: Arc<Mutex<RepositoryInfo>>,
 }
 
@@ -30,6 +31,7 @@ impl ContentViewer {
             content: "".to_owned(),
             repository: repository,
             context_size: 0,
+            height: 0,
             scroll_position: 0,
         }
     }
@@ -73,6 +75,7 @@ impl OperatableComponent for ContentViewer {
             .wrap(Wrap { trim: false });
 
         self.context_size = Paragraph::new(self.content.clone()).line_count(rect.width);
+        self.height = rect.height as usize;
         frame.render_widget(paragraph, rect)
     }
 
@@ -91,7 +94,9 @@ impl OperatableComponent for ContentViewer {
                 }
             }
             KeyCode::Down => {
-                if self.scroll_position + 1 <= self.context_size.saturating_sub(1) {
+                // 4 is the using frame size
+                if self.scroll_position + 1 <= 4 + self.context_size.saturating_sub(1 + self.height)
+                {
                     self.scroll_position += 1;
                 }
             }

@@ -19,6 +19,7 @@ use ratatui::{
 use std::{
     io::{self, Stdout},
     iter::Once,
+    ops::Mul,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -71,7 +72,7 @@ impl App {
             commit_viewer: CommitViewer::new(),
             content_viewer: ContentViewer::new(Arc::clone(&repository)),
         };
-        app.handle_message(Message::Once(OnceOperation::SetUp {
+        app.handle_message(Message::MultipleTimes(MultipleTimesOperation::SetUp {
             repository: Arc::clone(&repository),
         }));
         app

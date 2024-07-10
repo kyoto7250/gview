@@ -78,10 +78,9 @@ impl Filter {
     fn _handle_message(&mut self, message: &Message) -> Message {
         match message {
             Message::Once(OnceOperation::JumpToFiler) => self.focus = Focus::OFF,
-            Message::Once(operation) => match operation {
-                OnceOperation::SetUp { repository: _ } => self.focus = Focus::ON,
-                _ => {}
-            },
+            Message::MultipleTimes(MultipleTimesOperation::SetUp { repository: _ }) => {
+                self.focus = Focus::ON
+            }
             _ => {}
         }
 

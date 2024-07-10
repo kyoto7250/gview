@@ -35,12 +35,15 @@ impl Filer {
         match message {
             Message::Once(OnceOperation::JumpToContentView) => self.focus = Focus::OFF,
             Message::Once(OnceOperation::JumpToFiler) => self.focus = Focus::ON,
-            Message::Once(OnceOperation::SetUp { repository }) => {
+            Message::MultipleTimes(MultipleTimesOperation::SetUp { repository }) => {
                 let binding = repository.clone();
                 let mut repository = binding.lock().unwrap();
                 let items = repository.recursive_walk().unwrap();
                 self.items = items.clone();
                 self.results = items;
+                return Message::Once(OnceOperation::ShowFile {
+                    file: self.results[0].to_owned(),
+                });
             }
             Message::MultipleTimes(MultipleTimesOperation::Filtering { query }) => {
                 self.query = query.to_owned();
