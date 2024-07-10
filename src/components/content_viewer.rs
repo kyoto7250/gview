@@ -1,9 +1,11 @@
 use std::sync::{Arc, Mutex};
 
+use crossterm::event::KeyCode;
 use ratatui::{
     layout::Rect,
     style::{Color, Style, Stylize},
-    widgets::{Block, Paragraph},
+    text::{Line, Span},
+    widgets::{Block, Paragraph, Wrap},
     Frame,
 };
 
@@ -15,6 +17,8 @@ pub struct ContentViewer {
     focus: Focus,
     title: String,
     content: String,
+    context_size: usize,
+    scroll_position: usize,
     repository: Arc<Mutex<RepositoryInfo>>,
 }
 
@@ -25,6 +29,8 @@ impl ContentViewer {
             title: "Content Viewer".to_owned(),
             content: "".to_owned(),
             repository: repository,
+            context_size: 0,
+            scroll_position: 0,
         }
     }
 
@@ -36,7 +42,8 @@ impl ContentViewer {
                 let mut repository = self.repository.lock().unwrap();
 
                 if let Ok(content) = repository.get_content(file.to_owned()) {
-                    self.content = content
+                    self.content = content;
+                    self.scroll_position = 0
                 } else {
                     return Message::Error {
                         message: "failed to get content".to_owned(),
@@ -52,9 +59,21 @@ impl ContentViewer {
 
 impl OperatableComponent for ContentViewer {
     fn draw(&mut self, frame: &mut Frame, rect: Rect) {
-        let right_paragraph =
-            Paragraph::new(self.content.clone()).block(title_block(&self.title, self.focus));
-        frame.render_widget(right_paragraph, rect);
+        let contents: Vec<String> = self
+            .content
+            .lines()
+            .into_iter()
+            .skip(self.scroll_position)
+            .take(rect.height as usize)
+            .map(|line| String::from(format!("{}\n", line)))
+            .collect();
+
+        let paragraph = Paragraph::new(contents.concat())
+            .block(title_block(&self.title, self.focus))
+            .wrap(Wrap { trim: false });
+
+        self.context_size = Paragraph::new(self.content.clone()).line_count(rect.width);
+        frame.render_widget(paragraph, rect)
     }
 
     fn process_focus(&mut self) {
@@ -64,7 +83,20 @@ impl OperatableComponent for ContentViewer {
         }
     }
 
-    fn process_events(&mut self, events: crossterm::event::KeyCode) -> Message {
+    fn process_events(&mut self, events: KeyCode) -> Message {
+        match events {
+            KeyCode::Up => {
+                if self.scroll_position > 0 {
+                    self.scroll_position -= 1;
+                }
+            }
+            KeyCode::Down => {
+                if self.scroll_position + 1 <= self.context_size.saturating_sub(1) {
+                    self.scroll_position += 1;
+                }
+            }
+            _ => {}
+        }
         Message::NoAction
     }
 

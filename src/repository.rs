@@ -29,6 +29,9 @@ impl RepositoryInfo {
     }
 
     pub fn get_content(&mut self, filename: String) -> anyhow::Result<String> {
+        if filename == "not found".to_owned() {
+            return Ok("".to_owned());
+        }
         let path = Path::new(&filename);
         let blame = self.repository.blame_file(path, None)?;
         let commit = self.repository.head()?.peel_to_commit()?;
@@ -68,7 +71,6 @@ impl RepositoryInfo {
                             let content = blob.content();
                             if content.len() < MAX_FILE_SIZE && content.is_ascii() {
                                 results.push(current_path.to_string_lossy().to_string());
-                                print_blame(&self.repository, &current_path, blob);
                             }
                         }
                         Some(ObjectType::Tree) => {
