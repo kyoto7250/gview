@@ -1,3 +1,6 @@
+use std::sync::{Arc, Mutex};
+
+use crossterm::event::KeyCode;
 use ratatui::{
     layout::Rect,
     style::{Color, Style, Stylize},
@@ -5,26 +8,34 @@ use ratatui::{
     Frame,
 };
 
+use crate::repository::RepositoryInfo;
+
 use super::operatable_components::{Focus, Message, MultipleTimesOperation, OperatableComponent};
 
 pub struct CommitViewer {
     focus: Focus,
     content: String,
+    repository: Arc<Mutex<RepositoryInfo>>,
 }
 
 impl CommitViewer {
-    pub fn new() -> Self {
+    pub fn new(repository: Arc<Mutex<RepositoryInfo>>) -> Self {
         Self {
             focus: Focus::OFF,
             content: "".to_owned(),
+            repository: repository,
         }
     }
 
     fn _handle_message(&mut self, message: &Message) -> Message {
         match message {
             Message::MultipleTimes(MultipleTimesOperation::SetUp { repository }) => {
-                let binding = repository.clone();
-                let mut repository = binding.lock().unwrap();
+                let mut repository = repository.lock().unwrap();
+                let (commit_id, commit_message) = repository.current_commit().unwrap();
+                self.content = format!("{}: {}", commit_id, commit_message);
+            }
+            Message::MultipleTimes(MultipleTimesOperation::ChangeShowCommit) => {
+                let mut repository = self.repository.lock().unwrap();
                 let (commit_id, commit_message) = repository.current_commit().unwrap();
                 self.content = format!("{}: {}", commit_id, commit_message);
             }
@@ -46,7 +57,15 @@ impl OperatableComponent for CommitViewer {
             Focus::ON => self.focus = Focus::OFF,
         }
     }
-    fn process_events(&mut self, events: crossterm::event::KeyCode) -> Message {
+    fn process_events(&mut self, events: KeyCode) -> Message {
+        match events {
+            KeyCode::Down => {
+                let mut binding = self.repository.lock().unwrap();
+                binding.set_parent_commit();
+                return Message::MultipleTimes(MultipleTimesOperation::ChangeShowCommit);
+            }
+            _ => {}
+        }
         Message::NoAction
     }
 

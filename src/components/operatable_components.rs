@@ -19,6 +19,7 @@ pub enum MultipleTimesOperation {
     SetUp {
         repository: Arc<Mutex<RepositoryInfo>>,
     },
+    ChangeShowCommit,
 }
 
 pub enum OnceOperation {

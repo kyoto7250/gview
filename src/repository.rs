@@ -1,31 +1,35 @@
-use git2::{Blob, ObjectType, Repository, TreeWalkMode, TreeWalkResult};
+use git2::{Blob, Commit, ObjectType, Oid, Repository, TreeWalkMode, TreeWalkResult};
 use std::{
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
 };
 
 const MAX_FILE_SIZE: usize = 16 * 1024; // 16KB
 
 pub struct RepositoryInfo {
     repository: Repository,
+    oid: Oid,
 }
 
 impl RepositoryInfo {
     pub fn new() -> anyhow::Result<Self> {
         let repo_path = std::env::current_dir()?;
         let repository = Repository::discover(repo_path)?;
-        Ok(Self {
-            repository: repository,
-        })
+        let oid = repository.head()?.target().unwrap();
+        Ok(Self { repository, oid })
     }
 
     pub fn current_commit(&mut self) -> anyhow::Result<(String, String)> {
-        let head = self.repository.head()?.peel_to_commit()?;
-        let commit_id = head.id();
-        let commit_message = head.message().unwrap_or("No commit message");
+        let commit = self.repository.find_commit(self.oid)?;
+        let commit_message = commit.message().unwrap_or("No commit message");
+        Ok((self.oid.to_string(), commit_message.to_owned()))
+    }
 
-        Ok((commit_id.to_string(), commit_message.to_owned()))
+    pub fn set_parent_commit(&mut self) {
+        let commit = self.repository.find_commit(self.oid).unwrap();
+        if commit.parent_count() > 0 {
+            self.oid = commit.parent(0).unwrap().id();
+        }
     }
 
     pub fn get_content(&mut self, filename: String) -> anyhow::Result<String> {
@@ -55,8 +59,8 @@ impl RepositoryInfo {
         Ok(content)
     }
     pub fn recursive_walk(&mut self) -> anyhow::Result<Vec<String>> {
-        let head = self.repository.head();
-        let tree = head?.peel_to_commit()?.tree()?;
+        let head = self.repository.find_commit(self.oid)?;
+        let tree = head.tree()?;
         let mut results: Vec<String> = vec![];
         let mut path_stack: Vec<PathBuf> = vec![PathBuf::new()];
         let _ = tree.walk(TreeWalkMode::PreOrder, |root, entry| {

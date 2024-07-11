@@ -69,8 +69,8 @@ impl App {
             last_tick: Instant::now(),
             focus_state: FocusState::Filter,
             filter: Filter::new(),
-            filer: Filer::new(),
-            commit_viewer: CommitViewer::new(),
+            filer: Filer::new(Arc::clone(&repository)),
+            commit_viewer: CommitViewer::new(Arc::clone(&repository)),
             content_viewer: ContentViewer::new(Arc::clone(&repository)),
         };
         app.handle_message(Message::MultipleTimes(MultipleTimesOperation::SetUp {

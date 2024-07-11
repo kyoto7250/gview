@@ -1,4 +1,7 @@
-use std::cmp::min;
+use std::{
+    cmp::min,
+    sync::{Arc, Mutex},
+};
 
 use crossterm::event::KeyCode;
 use ratatui::{
@@ -7,6 +10,8 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState},
     Frame,
 };
+
+use crate::repository::RepositoryInfo;
 
 use super::operatable_components::{
     Focus, Message, MultipleTimesOperation, OnceOperation, OperatableComponent,
@@ -18,18 +23,20 @@ pub struct Filer {
     query: String,
     start_position: usize,
     max_scroll: usize,
+    repository: Arc<Mutex<RepositoryInfo>>,
     items: Vec<String>,
     results: Vec<String>,
 }
 
 impl Filer {
-    pub fn new() -> Self {
+    pub fn new(repository: Arc<Mutex<RepositoryInfo>>) -> Self {
         Self {
             focus: Focus::OFF,
             selected: 0,
             query: "".to_owned(),
             start_position: 0,
             max_scroll: 0,
+            repository,
             items: vec![],
             results: vec![],
         }
@@ -39,14 +46,34 @@ impl Filer {
         match message {
             Message::Once(OnceOperation::JumpToContentView) => self.focus = Focus::OFF,
             Message::Once(OnceOperation::JumpToFiler) => self.focus = Focus::ON,
-            Message::MultipleTimes(MultipleTimesOperation::SetUp { repository }) => {
-                let binding = repository.clone();
-                let mut repository = binding.lock().unwrap();
-                let items = repository.recursive_walk().unwrap();
+            Message::MultipleTimes(MultipleTimesOperation::SetUp { repository: _ }) => {
+                let mut binding = self.repository.lock().unwrap();
+                let items = binding.recursive_walk().unwrap();
                 self.items = items.clone();
                 self.results = items;
                 return Message::Once(OnceOperation::ShowFile {
                     file: self.results[0].to_owned(),
+                });
+            }
+            Message::MultipleTimes(MultipleTimesOperation::ChangeShowCommit) => {
+                let mut binding = self.repository.lock().unwrap();
+                let items = binding.recursive_walk().unwrap();
+                self.items = items.clone();
+                self.results = self
+                    .items
+                    .clone()
+                    .into_iter()
+                    .filter(|item| self.query.is_empty() || item.contains(&self.query))
+                    .collect();
+
+                if self.results.is_empty() {
+                    self.results.push("not found".to_owned())
+                }
+
+                self.selected = min(self.selected, self.results.len().saturating_sub(1));
+                self.start_position = 0;
+                return Message::Once(OnceOperation::ShowFile {
+                    file: self.results[self.selected].to_owned(),
                 });
             }
             Message::MultipleTimes(MultipleTimesOperation::Filtering { query }) => {
