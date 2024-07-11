@@ -91,12 +91,21 @@ impl Filter {
 impl OperatableComponent for Filter {
     fn draw(&mut self, frame: &mut Frame, rect: Rect) {
         // TODO: should scroll
-        let filter_paragraph = Paragraph::new(self.input.to_owned()).style(match self.focus {
+        let width = rect.width;
+        let mut input = self.input.to_owned();
+        let overflow = input.len().saturating_sub(width as usize);
+        if overflow > 0 {
+            input = input[overflow..].to_owned();
+        }
+
+        let filter_paragraph = Paragraph::new(input).style(match self.focus {
             Focus::ON => Style::default(),
             Focus::OFF => Style::default().fg(Color::DarkGray),
         });
         frame.render_widget(filter_paragraph, rect);
-        frame.set_cursor(rect.x + self.character_index as u16, rect.y);
+
+        let cursor_position = std::cmp::min(rect.x + self.character_index as u16, rect.width);
+        frame.set_cursor(cursor_position, rect.y);
     }
 
     fn process_focus(&mut self) {

@@ -146,6 +146,14 @@ impl App {
                             self.process_focus();
                         }
                         KeyCode::Char('q') => self.should_exit = true,
+                        KeyCode::Char('<') => {
+                            self.left_main_chunk_percentage =
+                                self.left_main_chunk_percentage.saturating_sub(5).max(15);
+                        }
+                        KeyCode::Char('>') => {
+                            self.left_main_chunk_percentage =
+                                (self.left_main_chunk_percentage + 5).min(70);
+                        }
                         _ => {
                             let message = self.process_events(key.code);
                             self.handle_message(message)
