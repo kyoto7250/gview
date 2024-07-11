@@ -5,9 +5,7 @@ use ratatui::{
     Frame,
 };
 
-use super::operatable_components::{
-    Focus, Message, MultipleTimesOperation, OnceOperation, OperatableComponent,
-};
+use super::operatable_components::{Focus, Message, MultipleTimesOperation, OperatableComponent};
 
 pub struct CommitViewer {
     focus: Focus,

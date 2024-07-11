@@ -2,7 +2,7 @@ use std::cmp::min;
 
 use crossterm::event::KeyCode;
 use ratatui::{
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
     widgets::{Block, Borders, List, ListItem, ListState},
     Frame,
@@ -76,6 +76,20 @@ impl Filer {
 
 impl<'a> OperatableComponent for Filer {
     fn draw(&mut self, frame: &mut Frame, rect: Rect) {
+        let title = if self.results.len() == 1 && self.results[0] == "not found" {
+            format!("0 files")
+        } else {
+            format!("{} files", self.results.len())
+        };
+        frame.render_widget(Block::default().title(title).borders(Borders::ALL), rect);
+
+        let chunk = Layout::default()
+            .vertical_margin(1)
+            .horizontal_margin(1)
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(100)].as_ref())
+            .split(rect)[0];
+
         let list_items: Vec<ListItem> = self
             .results
             .iter()
@@ -95,7 +109,7 @@ impl<'a> OperatableComponent for Filer {
             .map(String::len)
             .max()
             .unwrap_or(0)
-            .saturating_sub(rect.width as usize - 3);
+            .saturating_sub(chunk.width as usize - 3);
         let list = List::new(list_items)
             .block(Block::default().borders(Borders::NONE))
             .highlight_symbol(">> ")
@@ -106,7 +120,7 @@ impl<'a> OperatableComponent for Filer {
 
         let mut list_state = ListState::default();
         list_state.select(Some(self.selected));
-        frame.render_stateful_widget(list, rect, &mut list_state);
+        frame.render_stateful_widget(list, chunk, &mut list_state);
     }
 
     fn process_focus(&mut self) {

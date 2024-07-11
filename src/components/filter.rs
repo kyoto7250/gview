@@ -1,8 +1,8 @@
 use crossterm::event::KeyCode;
 use ratatui::{
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
-    widgets::Paragraph,
+    widgets::{Block, Borders, Paragraph},
     Frame,
 };
 
@@ -90,8 +90,19 @@ impl Filter {
 
 impl OperatableComponent for Filter {
     fn draw(&mut self, frame: &mut Frame, rect: Rect) {
-        // TODO: should scroll
-        let width = rect.width;
+        frame.render_widget(
+            Block::default().title("Explorer").borders(Borders::ALL),
+            rect,
+        );
+
+        let chunk = Layout::default()
+            .vertical_margin(1)
+            .horizontal_margin(1)
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(100)].as_ref())
+            .split(rect)[0];
+
+        let width = chunk.width;
         let mut input = self.input.to_owned();
         let overflow = input.len().saturating_sub(width as usize);
         if overflow > 0 {
@@ -102,10 +113,10 @@ impl OperatableComponent for Filter {
             Focus::ON => Style::default(),
             Focus::OFF => Style::default().fg(Color::DarkGray),
         });
-        frame.render_widget(filter_paragraph, rect);
+        frame.render_widget(filter_paragraph, chunk);
 
-        let cursor_position = std::cmp::min(rect.x + self.character_index as u16, rect.width);
-        frame.set_cursor(cursor_position, rect.y);
+        let cursor_position = std::cmp::min(chunk.x + self.character_index as u16, chunk.width);
+        frame.set_cursor(cursor_position, chunk.y);
     }
 
     fn process_focus(&mut self) {

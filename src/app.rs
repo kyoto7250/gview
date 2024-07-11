@@ -2,7 +2,8 @@ use crate::{
     components::{
         commit_viewer::CommitViewer,
         content_viewer::ContentViewer,
-        explorer::Explorer,
+        filer::Filer,
+        filter::Filter,
         operatable_components::{
             Message, MultipleTimesOperation, OnceOperation, OperatableComponent,
         },
@@ -18,8 +19,6 @@ use ratatui::{
 };
 use std::{
     io::{self, Stdout},
-    iter::Once,
-    ops::Mul,
     sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -52,7 +51,8 @@ pub struct App {
     should_exit: bool,
     last_tick: Instant,
     focus_state: FocusState,
-    explorer: Explorer,
+    filter: Filter,
+    filer: Filer,
     commit_viewer: CommitViewer,
     content_viewer: ContentViewer,
 }
@@ -68,7 +68,8 @@ impl App {
             should_exit: false,
             last_tick: Instant::now(),
             focus_state: FocusState::Filter,
-            explorer: Explorer::new(),
+            filter: Filter::new(),
+            filer: Filer::new(),
             commit_viewer: CommitViewer::new(),
             content_viewer: ContentViewer::new(Arc::clone(&repository)),
         };
@@ -81,8 +82,8 @@ impl App {
     fn process_focus(&mut self) {
         match self.focus_state {
             FocusState::Commit => self.commit_viewer.process_focus(),
-            FocusState::Filter => self.explorer.filter.process_focus(),
-            FocusState::Filer => self.explorer.filer.process_focus(),
+            FocusState::Filter => self.filter.process_focus(),
+            FocusState::Filer => self.filer.process_focus(),
             FocusState::Viewer => self.content_viewer.process_focus(),
         }
     }
@@ -90,8 +91,8 @@ impl App {
     fn process_events(&mut self, code: KeyCode) -> Message {
         match self.focus_state {
             FocusState::Commit => self.commit_viewer.process_events(code),
-            FocusState::Filter => self.explorer.filter.process_events(code),
-            FocusState::Filer => self.explorer.filer.process_events(code),
+            FocusState::Filter => self.filter.process_events(code),
+            FocusState::Filer => self.filer.process_events(code),
             FocusState::Viewer => self.content_viewer.process_events(code),
         }
     }
@@ -108,10 +109,10 @@ impl App {
             _ => {}
         }
 
-        let new_message = self.explorer.filer.handle_message(&message);
+        let new_message = self.filer.handle_message(&message);
         self.handle_message(new_message);
 
-        let new_message = self.explorer.filter.handle_message(&message);
+        let new_message = self.filter.handle_message(&message);
         self.handle_message(new_message);
 
         let new_message = self.content_viewer.handle_message(&message);
@@ -166,7 +167,7 @@ impl App {
     }
 
     pub fn draw(&mut self, frame: &mut Frame) -> anyhow::Result<()> {
-        let left_chunks = Layout::default()
+        let main_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
                 Constraint::Percentage(self.left_main_chunk_percentage),
@@ -174,14 +175,20 @@ impl App {
             ])
             .split(frame.size());
 
+        let left_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(3), Constraint::Min(1)].as_ref())
+            .split(main_chunks[0]);
+
         // chunks[0], chunks[1]
         let right_chunks = Layout::default()
             .direction(Direction::Vertical)
             .flex(Flex::Legacy)
             .constraints([Constraint::Length(3), Constraint::Length(5)].as_ref())
-            .split(left_chunks[1]);
+            .split(main_chunks[1]);
 
-        let _ = self.explorer.draw(frame, left_chunks[0]);
+        let _ = self.filter.draw(frame, left_chunks[0]);
+        let _ = self.filer.draw(frame, left_chunks[1]);
         self.commit_viewer.draw(frame, right_chunks[0]);
         self.content_viewer.draw(frame, right_chunks[1]);
         Ok(())
