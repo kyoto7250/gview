@@ -16,6 +16,8 @@ pub struct Filer {
     focus: Focus,
     selected: usize,
     query: String,
+    start_position: usize,
+    max_scroll: usize,
     items: Vec<String>,
     results: Vec<String>,
 }
@@ -26,6 +28,8 @@ impl Filer {
             focus: Focus::OFF,
             selected: 0,
             query: "".to_owned(),
+            start_position: 0,
+            max_scroll: 0,
             items: vec![],
             results: vec![],
         }
@@ -59,6 +63,7 @@ impl Filer {
                 }
 
                 self.selected = min(self.selected, self.results.len().saturating_sub(1));
+                self.start_position = 0;
                 return Message::Once(OnceOperation::ShowFile {
                     file: self.results[self.selected].to_owned(),
                 });
@@ -74,9 +79,23 @@ impl<'a> OperatableComponent for Filer {
         let list_items: Vec<ListItem> = self
             .results
             .iter()
-            .map(|item| ListItem::new(item.to_owned()))
+            .map(|item| {
+                if self.start_position < item.len() {
+                    ListItem::new(item[self.start_position..].to_owned())
+                } else {
+                    ListItem::new("".to_owned())
+                }
+            })
             .collect();
 
+        // 3 is the size of ">> "
+        self.max_scroll = self
+            .results
+            .iter()
+            .map(String::len)
+            .max()
+            .unwrap_or(0)
+            .saturating_sub(rect.width as usize - 3);
         let list = List::new(list_items)
             .block(Block::default().borders(Borders::NONE))
             .highlight_symbol(">> ")
@@ -113,6 +132,15 @@ impl<'a> OperatableComponent for Filer {
                         file: self.results[self.selected].clone(),
                     });
                 }
+            }
+            KeyCode::Left => {
+                if self.start_position > 0 {
+                    self.start_position -= 1
+                }
+            }
+            KeyCode::Right => {
+                self.start_position += 1;
+                self.start_position = std::cmp::min(self.start_position, self.max_scroll)
             }
             KeyCode::Enter => return Message::Once(OnceOperation::JumpToContentView),
             _ => {}
