@@ -1,17 +1,85 @@
 use crossterm::event::KeyCode;
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
-    widgets::{Block, Borders, Paragraph},
-    Frame,
+    layout::{Constraint, Direction, Layout, Rect}, style::{Color, Style}, symbols::border, widgets::{Block, Borders, Paragraph}, Frame
 };
+use regex::Regex;
 
 use super::operatable_components::{
     Focus, Message, MultipleTimesOperation, OnceOperation, OperatableComponent,
 };
 
+#[derive(Clone, Copy)]
+pub enum FilterMode {
+    PartialMatch,
+    FuzzyMatch,
+    RegularMatch,
+}
+
+impl FilterMode {
+    fn next(self) -> FilterMode {
+        match self {
+            FilterMode::PartialMatch => FilterMode::FuzzyMatch,
+            FilterMode::FuzzyMatch => FilterMode::RegularMatch,
+            FilterMode::RegularMatch => FilterMode::PartialMatch,
+        }
+    }
+
+    fn prev(self) -> FilterMode {
+        match self {
+            FilterMode::PartialMatch => FilterMode::RegularMatch,
+            FilterMode::FuzzyMatch => FilterMode::PartialMatch,
+            FilterMode::RegularMatch => FilterMode::FuzzyMatch,
+        }
+    }
+
+    fn appearance(self) -> (String, Style) {
+        match self {
+            FilterMode::PartialMatch => {
+                ("Partial Match".to_owned(), Style::default().fg(Color::Blue))
+            }
+            FilterMode::FuzzyMatch => ("Fuzzy Search".to_owned(), Style::default().fg(Color::Red)),
+            FilterMode::RegularMatch => (
+                "Regular Search".to_owned(),
+                Style::default().fg(Color::Green),
+            ),
+        }
+    }
+
+    pub fn filter(self, items: Vec<String>, query: &String) -> Vec<String> {
+        return match self {
+            FilterMode::PartialMatch => items
+                .into_iter()
+                .filter(|item| query.is_empty() || item.contains(query))
+                .collect(),
+            FilterMode::FuzzyMatch => {
+                let matcher = SkimMatcherV2::default();
+                let mut results = items
+                    .into_iter()
+                    .filter_map(|item| matcher.fuzzy_match(&item, query).map(|score| (item, score)))
+                    .collect::<Vec<_>>();
+                results.sort_by(|item, other| other.1.cmp(&item.1));
+                results
+                    .into_iter()
+                    .map(|(item, _)| item)
+                    .collect::<Vec<_>>()
+            }
+            FilterMode::RegularMatch => {
+                return if let Ok(re) = Regex::new(query) {
+                    // TODO: check the regular expression behavior
+                    items.into_iter().filter(|s| re.is_match(s)).collect()
+                } else {
+                    // TODO: popup regular expression error
+                    return vec!["error".to_owned()];
+                }
+            }
+        };
+    }
+}
+
 pub struct Filter {
     focus: Focus,
+    mode: FilterMode,
     input: String,
     character_index: usize,
 }
@@ -20,6 +88,7 @@ impl Filter {
     pub fn new() -> Self {
         Self {
             focus: Focus::OFF,
+            mode: FilterMode::PartialMatch,
             input: "".to_owned(),
             character_index: 0,
         }
@@ -90,8 +159,21 @@ impl Filter {
 
 impl OperatableComponent for Filter {
     fn draw(&mut self, frame: &mut Frame, rect: Rect) {
+        let (title, border_style) = self.mode.appearance();
         frame.render_widget(
-            Block::default().title("Explorer").borders(Borders::ALL),
+            Block::default()
+                .title(title)
+                .borders(Borders::ALL)
+                .border_style (
+                    match self.focus {
+                        Focus::OFF => {
+                            Style::default().fg(Color::DarkGray)
+                        },
+                        Focus::ON => {
+                            border_style
+                        }
+                    }
+                ),
             rect,
         );
 
@@ -128,10 +210,25 @@ impl OperatableComponent for Filter {
 
     fn process_events(&mut self, events: crossterm::event::KeyCode) -> Message {
         match events {
+            KeyCode::Down => {
+                self.mode = self.mode.prev();
+                return Message::MultipleTimes(MultipleTimesOperation::Filtering {
+                    query: self.input.to_owned(),
+                    mode: self.mode,
+                });
+            }
+            KeyCode::Up => {
+                self.mode = self.mode.next();
+                return Message::MultipleTimes(MultipleTimesOperation::Filtering {
+                    query: self.input.to_owned(),
+                    mode: self.mode,
+                });
+            }
             KeyCode::Char(char) => {
                 self.enter_char(char);
                 return Message::MultipleTimes(MultipleTimesOperation::Filtering {
                     query: self.input.to_owned(),
+                    mode: self.mode,
                 });
             }
             KeyCode::Enter => return Message::Once(OnceOperation::JumpToFiler),
@@ -139,6 +236,7 @@ impl OperatableComponent for Filter {
                 self.delete_char();
                 return Message::MultipleTimes(MultipleTimesOperation::Filtering {
                     query: self.input.to_owned(),
+                    mode: self.mode,
                 });
             }
             _ => {}

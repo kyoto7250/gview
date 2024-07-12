@@ -13,8 +13,11 @@ use ratatui::{
 
 use crate::repository::RepositoryInfo;
 
-use super::operatable_components::{
-    Focus, Message, MultipleTimesOperation, OnceOperation, OperatableComponent,
+use super::{
+    filter::FilterMode,
+    operatable_components::{
+        Focus, Message, MultipleTimesOperation, OnceOperation, OperatableComponent,
+    },
 };
 
 pub struct Filer {
@@ -23,6 +26,7 @@ pub struct Filer {
     query: String,
     start_position: usize,
     max_scroll: usize,
+    mode: FilterMode,
     repository: Arc<Mutex<RepositoryInfo>>,
     items: Vec<String>,
     results: Vec<String>,
@@ -36,6 +40,7 @@ impl Filer {
             query: "".to_owned(),
             start_position: 0,
             max_scroll: 0,
+            mode: FilterMode::PartialMatch,
             repository,
             items: vec![],
             results: vec![],
@@ -59,13 +64,7 @@ impl Filer {
                 let mut binding = self.repository.lock().unwrap();
                 let items = binding.recursive_walk().unwrap();
                 self.items = items.clone();
-                self.results = self
-                    .items
-                    .clone()
-                    .into_iter()
-                    .filter(|item| self.query.is_empty() || item.contains(&self.query))
-                    .collect();
-
+                self.results = self.mode.filter(items.clone(), &self.query);
                 if self.results.is_empty() {
                     self.results.push("not found".to_owned())
                 }
@@ -76,15 +75,10 @@ impl Filer {
                     file: self.results[self.selected].to_owned(),
                 });
             }
-            Message::MultipleTimes(MultipleTimesOperation::Filtering { query }) => {
+            Message::MultipleTimes(MultipleTimesOperation::Filtering { query, mode }) => {
                 self.query = query.to_owned();
-                self.results = self
-                    .items
-                    .clone()
-                    .into_iter()
-                    .filter(|item| self.query.is_empty() || item.contains(&self.query))
-                    .collect();
-
+                self.mode = mode.clone();
+                self.results = self.mode.filter(self.items.clone(), &query);
                 if self.results.is_empty() {
                     self.results.push("not found".to_owned())
                 }

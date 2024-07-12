@@ -5,7 +5,9 @@ edition = "2021"
 
 [dependencies]
 ratatui = { version = "0.27", features = ["unstable-rendered-line-info"]}
+fuzzy-matcher = "*"
 git2 = "0.19.0"
 anyhow = "1.0.86"
 crossterm = "0.27.0"
 color-eyre = "0.6.3"
+regex = "1.10.5"

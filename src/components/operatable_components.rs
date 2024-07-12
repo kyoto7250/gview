@@ -4,6 +4,8 @@ use crate::repository::RepositoryInfo;
 use crossterm::event::KeyCode;
 use ratatui::{layout::Rect, Frame};
 
+use super::filter::FilterMode;
+
 // rust enum pass the operation command
 pub enum Message {
     MultipleTimes(MultipleTimesOperation),
@@ -15,6 +17,7 @@ pub enum Message {
 pub enum MultipleTimesOperation {
     Filtering {
         query: String,
+        mode: FilterMode,
     },
     SetUp {
         repository: Arc<Mutex<RepositoryInfo>>,
