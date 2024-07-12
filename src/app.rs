@@ -138,25 +138,38 @@ impl App {
     fn handle_events(&mut self) -> io::Result<()> {
         let timeout = Self::TICK_RATE.saturating_sub(self.last_tick.elapsed());
         while event::poll(timeout)? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Tab => {
+            if let Event::Key(event) = event::read()? {
+                if event.kind == KeyEventKind::Press {
+                    match event {
+                        event::KeyEvent {
+                            code: event::KeyCode::Tab,
+                            ..
+                        } => {
                             self.process_focus();
                             self.focus_state = self.focus_state.next();
                             self.process_focus();
                         }
-                        KeyCode::Char('q') => self.should_exit = true,
-                        KeyCode::Char('<') => {
+                        event::KeyEvent {
+                            code: event::KeyCode::Char('c'),
+                            modifiers: event::KeyModifiers::CONTROL,
+                            ..
+                        } => self.should_exit = true,
+                        event::KeyEvent {
+                            code: event::KeyCode::Char('<'),
+                            ..
+                        } => {
                             self.left_main_chunk_percentage =
                                 self.left_main_chunk_percentage.saturating_sub(5).max(15);
                         }
-                        KeyCode::Char('>') => {
+                        event::KeyEvent {
+                            code: event::KeyCode::Char('>'),
+                            ..
+                        } => {
                             self.left_main_chunk_percentage =
                                 (self.left_main_chunk_percentage + 5).min(70);
                         }
                         _ => {
-                            let message = self.process_events(key.code);
+                            let message = self.process_events(event.code);
                             self.handle_message(message)
                         }
                     }
