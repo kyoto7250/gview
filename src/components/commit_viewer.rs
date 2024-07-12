@@ -64,6 +64,11 @@ impl OperatableComponent for CommitViewer {
                 binding.set_parent_commit();
                 return Message::MultipleTimes(MultipleTimesOperation::ChangeShowCommit);
             }
+            KeyCode::Up => {
+                let mut binding = self.repository.lock().unwrap();
+                binding.set_next_commit();
+                return Message::MultipleTimes(MultipleTimesOperation::ChangeShowCommit);
+            }
             _ => {}
         }
         Message::NoAction

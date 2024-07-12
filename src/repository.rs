@@ -32,6 +32,45 @@ impl RepositoryInfo {
         }
     }
 
+    pub fn set_next_commit(&mut self) -> anyhow::Result<(String, String)> {
+        let next_commit_id = {
+            let next_commit = self.find_next_commit()?;
+            if let Some(next_commit) = next_commit {
+                Some(next_commit.id())
+            } else {
+                None
+            }
+        };
+
+        if let Some(next_commit_id) = next_commit_id {
+            self.oid = next_commit_id;
+        }
+        self.current_commit()
+    }
+
+    fn find_next_commit(&mut self) -> anyhow::Result<Option<Commit>> {
+        let commit = self.repository.find_commit(self.oid)?;
+        let mut revwalk = self.repository.revwalk()?;
+        revwalk.push_head()?;
+        revwalk.set_sorting(git2::Sort::REVERSE)?;
+
+        let mut next_commit_found = false;
+        for oid_result in revwalk {
+            let oid = oid_result?;
+            let rev_commit = self.repository.find_commit(oid)?;
+
+            if next_commit_found {
+                return Ok(Some(rev_commit));
+            }
+
+            if rev_commit.id() == commit.id() {
+                next_commit_found = true;
+            }
+        }
+
+        Ok(None)
+    }
+
     pub fn get_content(&mut self, filename: String) -> anyhow::Result<String> {
         if filename == "not found".to_owned() {
             return Ok("".to_owned());
