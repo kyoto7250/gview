@@ -1,7 +1,11 @@
 use crossterm::event::KeyCode;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect}, style::{Color, Style}, symbols::border, widgets::{Block, Borders, Paragraph}, Frame
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Style},
+    symbols::border,
+    widgets::{Block, Borders, Paragraph},
+    Frame,
 };
 use regex::Regex;
 
@@ -71,7 +75,7 @@ impl FilterMode {
                 } else {
                     // TODO: popup regular expression error
                     return vec!["error".to_owned()];
-                }
+                };
             }
         };
     }
@@ -164,16 +168,10 @@ impl OperatableComponent for Filter {
             Block::default()
                 .title(title)
                 .borders(Borders::ALL)
-                .border_style (
-                    match self.focus {
-                        Focus::OFF => {
-                            Style::default().fg(Color::DarkGray)
-                        },
-                        Focus::ON => {
-                            border_style
-                        }
-                    }
-                ),
+                .border_style(match self.focus {
+                    Focus::OFF => Style::default().fg(Color::DarkGray),
+                    Focus::ON => border_style,
+                }),
             rect,
         );
 

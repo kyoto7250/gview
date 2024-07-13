@@ -9,9 +9,49 @@ use ratatui::{
     Frame,
 };
 
-use crate::repository::RepositoryInfo;
+use crate::repository::{CommitRow, RepositoryInfo};
 
 use super::operatable_components::{Focus, Message, OnceOperation, OperatableComponent};
+
+pub enum ShowMode {
+    WithLine,
+    WithBlame,
+    NoLine,
+}
+
+impl ShowMode {
+    fn next(&mut self) -> ShowMode {
+        return match self {
+            Self::WithLine => Self::WithBlame,
+            Self::WithBlame => Self::NoLine,
+            Self::NoLine => Self::WithLine,
+        };
+    }
+
+    fn concat(&mut self, rows: Vec<CommitRow>) -> String {
+        return match self {
+            Self::NoLine => rows
+                .iter()
+                .map(|row| row.line.to_owned())
+                .collect::<Vec<String>>()
+                .join("\n"),
+            Self::WithLine => {
+                // TODO: maximum size
+                rows.iter()
+                    .map(|row| format!("{} | {} ", row.number, row.line.to_owned()))
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            }
+            Self::WithBlame => {
+                // TODO: maximum size
+                rows.iter()
+                    .map(|row| format!("{} | {} ", row.commit, row.line.to_owned()))
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            }
+        };
+    }
+}
 
 pub struct ContentViewer {
     focus: Focus,
@@ -21,6 +61,7 @@ pub struct ContentViewer {
     scroll_position: usize,
     height: usize,
     repository: Arc<Mutex<RepositoryInfo>>,
+    mode: ShowMode,
 }
 
 impl ContentViewer {
@@ -33,6 +74,7 @@ impl ContentViewer {
             context_size: 0,
             height: 0,
             scroll_position: 0,
+            mode: ShowMode::WithLine,
         }
     }
 
@@ -43,8 +85,8 @@ impl ContentViewer {
                 self.title = file.to_owned();
                 let mut repository = self.repository.lock().unwrap();
 
-                if let Ok(content) = repository.get_content(file.to_owned()) {
-                    self.content = content;
+                if let Ok(rows) = repository.get_content(file.to_owned()) {
+                    self.content = self.mode.concat(rows);
                     self.scroll_position = 0
                 } else {
                     return Message::Error {
@@ -98,6 +140,18 @@ impl OperatableComponent for ContentViewer {
                 if self.scroll_position + 1 <= 4 + self.context_size.saturating_sub(1 + self.height)
                 {
                     self.scroll_position += 1;
+                }
+            }
+            KeyCode::Char('o') => {
+                self.mode = self.mode.next();
+                let mut repository = self.repository.lock().unwrap();
+                if let Ok(rows) = repository.get_content(self.title.to_owned()) {
+                    self.content = self.mode.concat(rows);
+                    self.scroll_position = 0
+                } else {
+                    return Message::Error {
+                        message: "failed to get content".to_owned(),
+                    };
                 }
             }
             _ => {}

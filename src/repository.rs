@@ -6,6 +6,24 @@ use std::{
 
 const MAX_FILE_SIZE: usize = 16 * 1024; // 16KB
 
+pub struct CommitRow {
+    pub author: String,
+    pub commit: Oid,
+    pub number: usize,
+    pub line: String,
+}
+
+impl CommitRow {
+    pub fn new(author: String, commit: Oid, number: usize, line: String) -> CommitRow {
+        Self {
+            author,
+            commit,
+            number,
+            line,
+        }
+    }
+}
+
 pub struct RepositoryInfo {
     repository: Repository,
     oid: Oid,
@@ -71,9 +89,9 @@ impl RepositoryInfo {
         Ok(None)
     }
 
-    pub fn get_content(&mut self, filename: String) -> anyhow::Result<String> {
+    pub fn get_content(&mut self, filename: String) -> anyhow::Result<Vec<CommitRow>> {
         if filename == "not found".to_owned() {
-            return Ok("".to_owned());
+            return Ok(vec![]);
         }
         let path = Path::new(&filename);
         let blame = self.repository.blame_file(path, None)?;
@@ -84,14 +102,15 @@ impl RepositoryInfo {
             .to_object(&self.repository)?
             .peel_to_blob()?;
         let reader = BufReader::new(blob.content());
-        let mut content = String::from("");
+        let mut content = vec![];
         for (i, line) in reader.lines().enumerate() {
             if let (Ok(line), Some(hunk)) = (line, blame.get_line(i + 1)) {
                 let signature = hunk.orig_signature();
                 let author = signature.name().unwrap_or("Unknown");
                 let commit_id = hunk.final_commit_id();
                 let line_number = hunk.final_start_line();
-                content += &format!("{}\n", line);
+                let row = CommitRow::new(author.to_owned(), commit_id, i + 1, line);
+                content.push(row);
             }
         }
 
