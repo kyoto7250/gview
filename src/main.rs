@@ -1,73 +1,77 @@
+mod app;
+mod components;
+mod repository;
 use std::{
-    io::{BufRead, BufReader},
+    io::{self, stdout, BufRead, BufReader},
+    panic,
     path::Path,
 };
 
-use git2::{Blob, ObjectType, Repository, Tree, TreeWalkMode, TreeWalkResult};
+use app::Tui;
+use color_eyre::{
+    config::{EyreHook, HookBuilder, PanicHook},
+    eyre,
+};
+use crossterm::ExecutableCommand;
+use ratatui::{
+    backend::CrosstermBackend,
+    crossterm::terminal::{
+        disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    },
+    terminal::Terminal,
+};
 
-const MAX_FILE_SIZE: usize = 16 * 1024; // 16KB
-
-fn recursive_walk(repo: &Repository, tree: Tree) -> Vec<String> {
-    let mut results: Vec<String> = vec![];
-    let _ = tree.walk(TreeWalkMode::PreOrder, |_, entry| {
-        if let Some(name) = entry.name() {
-            if let Ok(obj) = entry.to_object(&repo) {
-                match obj.kind() {
-                    Some(ObjectType::Blob) => {
-                        let blob = obj.peel_to_blob().unwrap();
-                        let content = blob.content();
-                        if content.len() < MAX_FILE_SIZE && content.is_ascii() {
-                            println!("{} is text file", name);
-                            let _ = print_blame(&repo, Path::new(name), blob);
-                            results.push(name.to_owned());
-                        }
-                    }
-                    _ => (),
-                }
-            }
-        }
-        TreeWalkResult::Ok
-    });
-    return results;
-}
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let repo_path = std::env::current_dir()?;
-    let repo = Repository::discover(repo_path)?;
-
-    let head = repo.head();
-
-    if head.is_err() {
-        println!("Git repository does not exist. Bye!");
-        return Ok(());
-    }
-    let tree = head?.peel_to_commit()?.tree()?;
-    let results = recursive_walk(&repo, tree);
-
+pub fn install_hooks() -> color_eyre::Result<()> {
+    let (panic_hook, eyre_hook) = HookBuilder::default().into_hooks();
+    install_panic_hook(panic_hook);
+    install_error_hook(eyre_hook)?;
     Ok(())
 }
 
-fn print_blame(
-    repo: &Repository,
-    path: &Path,
-    blob: Blob,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let blame = repo.blame_file(path, None)?;
-    println!("{:?}", blame.len());
-    let reader = BufReader::new(blob.content());
+/// Install a panic hook that restores the terminal before printing the panic.
+fn install_panic_hook(panic_hook: PanicHook) {
+    let panic_hook = panic_hook.into_panic_hook();
+    panic::set_hook(Box::new(move |panic_info| {
+        let _ = restore_terminal();
+        panic_hook(panic_info);
+    }));
+}
 
-    for (i, line) in reader.lines().enumerate() {
-        if let (Ok(line), Some(hunk)) = (line, blame.get_line(i + 1)) {
-            let signature = hunk.orig_signature();
-            let author = signature.name().unwrap_or("Unknown");
-            let commit_id = hunk.final_commit_id();
-            let line_number = hunk.final_start_line();
-            println!(
-                "Line {} - Author: {}, Commit: {}, Line {}",
-                line_number, author, commit_id, line
-            );
-        }
+/// Install an error hook that restores the terminal before printing the error.
+fn install_error_hook(eyre_hook: EyreHook) -> color_eyre::Result<()> {
+    let eyre_hook = eyre_hook.into_eyre_hook();
+    eyre::set_hook(Box::new(move |error| {
+        let _ = restore_terminal();
+        eyre_hook(error)
+    }))?;
+    Ok(())
+}
+
+/// Initialize the terminal and enter alternate screen mode.
+pub fn init_terminal() -> io::Result<Tui> {
+    enable_raw_mode()?;
+    stdout().execute(EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout());
+    Terminal::new(backend)
+}
+
+/// Restore the terminal to its original state.
+pub fn restore_terminal() -> io::Result<()> {
+    disable_raw_mode()?;
+    stdout().execute(LeaveAlternateScreen)?;
+    Ok(())
+}
+
+fn main() -> color_eyre::Result<()> {
+    let repository_info = repository::RepositoryInfo::new();
+    if repository_info.is_err() {
+        return Ok(());
     }
 
+    install_hooks()?;
+    let mut terminal = init_terminal()?;
+    let mut app = app::App::new(repository_info.unwrap());
+    app.run(&mut terminal)?;
+    restore_terminal()?;
     Ok(())
 }
