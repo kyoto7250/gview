@@ -35,7 +35,7 @@ pub struct Filer {
 impl Filer {
     pub fn new(repository: Arc<Mutex<RepositoryInfo>>) -> Self {
         Self {
-            focus: Focus::OFF,
+            focus: Focus::Off,
             selected: 0,
             query: "".to_owned(),
             start_position: 0,
@@ -49,12 +49,12 @@ impl Filer {
 
     fn _handle_message(&mut self, message: &Message) -> Message {
         match message {
-            Message::Once(OnceOperation::JumpToContentView) => self.focus = Focus::OFF,
+            Message::Once(OnceOperation::JumpToContentView) => self.focus = Focus::Off,
             Message::Once(OnceOperation::JumpToFiler) => self.focus = Focus::ON,
             Message::MultipleTimes(MultipleTimesOperation::SetUp { repository: _ }) => {
                 let mut binding = self.repository.lock().unwrap();
                 let items = binding.recursive_walk().unwrap();
-                self.items = items.clone();
+                self.items.clone_from(&items);
                 self.results = items;
                 return Message::Once(OnceOperation::ShowFile {
                     file: self.results[0].to_owned(),
@@ -63,7 +63,7 @@ impl Filer {
             Message::MultipleTimes(MultipleTimesOperation::ChangeShowCommit) => {
                 let mut binding = self.repository.lock().unwrap();
                 let items = binding.recursive_walk().unwrap();
-                self.items = items.clone();
+                self.items.clone_from(&items);
                 self.results = self.mode.filter(items.clone(), &self.query);
                 if self.results.is_empty() {
                     self.results.push("not found".to_owned())
@@ -76,9 +76,9 @@ impl Filer {
                 });
             }
             Message::MultipleTimes(MultipleTimesOperation::Filtering { query, mode }) => {
-                self.query = query.to_owned();
-                self.mode = mode.clone();
-                self.results = self.mode.filter(self.items.clone(), &query);
+                query.clone_into(&mut self.query);
+                self.mode = *mode;
+                self.results = self.mode.filter(self.items.clone(), query);
                 if self.results.is_empty() {
                     self.results.push("not found".to_owned())
                 }
@@ -95,10 +95,10 @@ impl Filer {
     }
 }
 
-impl<'a> OperatableComponent for Filer {
+impl OperatableComponent for Filer {
     fn draw(&mut self, frame: &mut Frame, rect: Rect) {
         let title = if self.results.len() == 1 && self.results[0] == "not found" {
-            format!("0 files")
+            "0 files".to_string()
         } else {
             format!("{} files", self.results.len())
         };
@@ -136,7 +136,7 @@ impl<'a> OperatableComponent for Filer {
             .highlight_symbol(">> ")
             .style(match self.focus {
                 Focus::ON => Style::default(),
-                Focus::OFF => Style::default().fg(Color::DarkGray),
+                Focus::Off => Style::default().fg(Color::DarkGray),
             });
 
         let mut list_state = ListState::default();
@@ -146,8 +146,8 @@ impl<'a> OperatableComponent for Filer {
 
     fn process_focus(&mut self) {
         match self.focus {
-            Focus::OFF => self.focus = Focus::ON,
-            Focus::ON => self.focus = Focus::OFF,
+            Focus::Off => self.focus = Focus::ON,
+            Focus::ON => self.focus = Focus::Off,
         }
     }
     fn process_events(&mut self, code: KeyCode) -> Message {
@@ -161,7 +161,7 @@ impl<'a> OperatableComponent for Filer {
                 }
             }
             KeyCode::Down => {
-                if self.selected + 1 <= self.results.len().saturating_sub(1) {
+                if self.selected < self.results.len().saturating_sub(1) {
                     self.selected += 1;
                     return Message::Once(OnceOperation::ShowFile {
                         file: self.results[self.selected].clone(),
@@ -189,13 +189,13 @@ impl<'a> OperatableComponent for Filer {
         // 2. MultipleTimes -> NoAction
         // 3. Once -> NoAction
         // 4. NoAction -> NoAction
-        return match (message, self._handle_message(message)) {
+        match (message, self._handle_message(message)) {
             (Message::MultipleTimes(_), Message::MultipleTimes(_)) => unreachable!(),
             (Message::Once(_), Message::MultipleTimes(_)) => unreachable!(),
             (Message::Once(_), Message::Once(_)) => unreachable!(),
             (Message::NoAction, Message::MultipleTimes(_)) => unreachable!(),
             (Message::NoAction, Message::Once(_)) => unreachable!(),
             (_, new_message) => new_message,
-        };
+        }
     }
 }

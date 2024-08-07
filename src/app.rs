@@ -46,7 +46,6 @@ impl FocusState {
 }
 
 pub struct App {
-    repository_info: Arc<Mutex<RepositoryInfo>>,
     left_main_chunk_percentage: u16,
     should_exit: bool,
     last_tick: Instant,
@@ -63,7 +62,6 @@ impl App {
     pub fn new(repository_info: RepositoryInfo) -> App {
         let repository = Arc::new(Mutex::new(repository_info));
         let mut app = Self {
-            repository_info: Arc::clone(&repository),
             left_main_chunk_percentage: 15,
             should_exit: false,
             last_tick: Instant::now(),
@@ -200,8 +198,8 @@ impl App {
             .constraints([Constraint::Length(3), Constraint::Length(5)].as_ref())
             .split(main_chunks[1]);
 
-        let _ = self.filter.draw(frame, left_chunks[0]);
-        let _ = self.filer.draw(frame, left_chunks[1]);
+        self.filter.draw(frame, left_chunks[0]);
+        self.filer.draw(frame, left_chunks[1]);
         self.commit_viewer.draw(frame, right_chunks[0]);
         self.content_viewer.draw(frame, right_chunks[1]);
         Ok(())

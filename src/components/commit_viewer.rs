@@ -21,9 +21,9 @@ pub struct CommitViewer {
 impl CommitViewer {
     pub fn new(repository: Arc<Mutex<RepositoryInfo>>) -> Self {
         Self {
-            focus: Focus::OFF,
+            focus: Focus::Off,
             content: "".to_owned(),
-            repository: repository,
+            repository,
         }
     }
 
@@ -53,8 +53,8 @@ impl OperatableComponent for CommitViewer {
     }
     fn process_focus(&mut self) {
         match self.focus {
-            Focus::OFF => self.focus = Focus::ON,
-            Focus::ON => self.focus = Focus::OFF,
+            Focus::Off => self.focus = Focus::ON,
+            Focus::ON => self.focus = Focus::Off,
         }
     }
     fn process_events(&mut self, events: KeyCode) -> Message {
@@ -66,7 +66,7 @@ impl OperatableComponent for CommitViewer {
             }
             KeyCode::Up => {
                 let mut binding = self.repository.lock().unwrap();
-                binding.set_next_commit();
+                let _ = binding.set_next_commit();
                 return Message::MultipleTimes(MultipleTimesOperation::ChangeShowCommit);
             }
             _ => {}
@@ -80,14 +80,14 @@ impl OperatableComponent for CommitViewer {
         // 2. MultipleTimes -> NoAction
         // 3. Once -> NoAction
         // 4. NoAction -> NoAction
-        return match (message, self._handle_message(message)) {
+        match (message, self._handle_message(message)) {
             (Message::MultipleTimes(_), Message::MultipleTimes(_)) => unreachable!(),
             (Message::Once(_), Message::MultipleTimes(_)) => unreachable!(),
             (Message::Once(_), Message::Once(_)) => unreachable!(),
             (Message::NoAction, Message::MultipleTimes(_)) => unreachable!(),
             (Message::NoAction, Message::Once(_)) => unreachable!(),
             (_, new_message) => new_message,
-        };
+        }
     }
 }
 
@@ -96,6 +96,6 @@ fn title_block(title: &str, focus: Focus) -> Block {
         .title(title.bold().into_left_aligned_line())
         .style(match focus {
             Focus::ON => Style::default(),
-            Focus::OFF => Style::default().fg(Color::DarkGray),
+            Focus::Off => Style::default().fg(Color::DarkGray),
         });
 }
