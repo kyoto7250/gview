@@ -2,9 +2,8 @@ mod app;
 mod components;
 mod repository;
 use std::{
-    io::{self, stdout, BufRead, BufReader},
+    io::{self, stdout},
     panic,
-    path::Path,
 };
 
 use app::Tui;

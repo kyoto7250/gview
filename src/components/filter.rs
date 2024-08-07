@@ -3,7 +3,6 @@ use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Style},
-    symbols::border,
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
@@ -13,6 +12,7 @@ use super::operatable_components::{
     Focus, Message, MultipleTimesOperation, OnceOperation, OperatableComponent,
 };
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Clone, Copy)]
 pub enum FilterMode {
     PartialMatch,
@@ -51,7 +51,7 @@ impl FilterMode {
     }
 
     pub fn filter(self, items: Vec<String>, query: &String) -> Vec<String> {
-        return match self {
+        match self {
             FilterMode::PartialMatch => items
                 .into_iter()
                 .filter(|item| query.is_empty() || item.contains(query))
@@ -69,15 +69,15 @@ impl FilterMode {
                     .collect::<Vec<_>>()
             }
             FilterMode::RegularMatch => {
-                return if let Ok(re) = Regex::new(query) {
+                if let Ok(re) = Regex::new(query) {
                     // TODO: check the regular expression behavior
                     items.into_iter().filter(|s| re.is_match(s)).collect()
                 } else {
                     // TODO: popup regular expression error
-                    return vec!["error".to_owned()];
-                };
+                    vec!["error".to_owned()]
+                }
             }
-        };
+        }
     }
 }
 
@@ -91,7 +91,7 @@ pub struct Filter {
 impl Filter {
     pub fn new() -> Self {
         Self {
-            focus: Focus::OFF,
+            focus: Focus::Off,
             mode: FilterMode::PartialMatch,
             input: "".to_owned(),
             character_index: 0,
@@ -150,7 +150,7 @@ impl Filter {
 
     fn _handle_message(&mut self, message: &Message) -> Message {
         match message {
-            Message::Once(OnceOperation::JumpToFiler) => self.focus = Focus::OFF,
+            Message::Once(OnceOperation::JumpToFiler) => self.focus = Focus::Off,
             Message::MultipleTimes(MultipleTimesOperation::SetUp { repository: _ }) => {
                 self.focus = Focus::ON
             }
@@ -169,7 +169,7 @@ impl OperatableComponent for Filter {
                 .title(title)
                 .borders(Borders::ALL)
                 .border_style(match self.focus {
-                    Focus::OFF => Style::default().fg(Color::DarkGray),
+                    Focus::Off => Style::default().fg(Color::DarkGray),
                     Focus::ON => border_style,
                 }),
             rect,
@@ -183,15 +183,15 @@ impl OperatableComponent for Filter {
             .split(rect)[0];
 
         let width = chunk.width;
-        let mut input = self.input.to_owned();
+        let input = self.input.to_owned();
         let overflow = input.len().saturating_sub(width as usize);
         if overflow > 0 {
-            input = input[overflow..].to_owned();
+            input[overflow..].clone_into(&mut input.to_owned())
         }
 
         let filter_paragraph = Paragraph::new(input).style(match self.focus {
             Focus::ON => Style::default(),
-            Focus::OFF => Style::default().fg(Color::DarkGray),
+            Focus::Off => Style::default().fg(Color::DarkGray),
         });
         frame.render_widget(filter_paragraph, chunk);
 
@@ -201,8 +201,8 @@ impl OperatableComponent for Filter {
 
     fn process_focus(&mut self) {
         match self.focus {
-            Focus::OFF => self.focus = Focus::ON,
-            Focus::ON => self.focus = Focus::OFF,
+            Focus::Off => self.focus = Focus::ON,
+            Focus::ON => self.focus = Focus::Off,
         }
     }
 
@@ -248,13 +248,13 @@ impl OperatableComponent for Filter {
         // 2. MultipleTimes -> NoAction
         // 3. Once -> NoAction
         // 4. NoAction -> NoAction
-        return match (message, self._handle_message(message)) {
+        match (message, self._handle_message(message)) {
             (Message::MultipleTimes(_), Message::MultipleTimes(_)) => unreachable!(),
             (Message::Once(_), Message::MultipleTimes(_)) => unreachable!(),
             (Message::Once(_), Message::Once(_)) => unreachable!(),
             (Message::NoAction, Message::MultipleTimes(_)) => unreachable!(),
             (Message::NoAction, Message::Once(_)) => unreachable!(),
             (_, new_message) => new_message,
-        };
+        }
     }
 }

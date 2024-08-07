@@ -1,4 +1,4 @@
-use git2::{Blob, Commit, ObjectType, Oid, Repository, TreeWalkMode, TreeWalkResult};
+use git2::{Commit, ObjectType, Oid, Repository, TreeWalkMode, TreeWalkResult};
 use std::{
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
@@ -7,7 +7,7 @@ use std::{
 const MAX_FILE_SIZE: usize = 16 * 1024; // 16KB
 
 pub struct CommitRow {
-    pub author: String,
+    pub _author: String,
     pub commit: Oid,
     pub number: usize,
     pub line: String,
@@ -16,7 +16,7 @@ pub struct CommitRow {
 impl CommitRow {
     pub fn new(author: String, commit: Oid, number: usize, line: String) -> CommitRow {
         Self {
-            author,
+            _author: author,
             commit,
             number,
             line,
@@ -53,11 +53,7 @@ impl RepositoryInfo {
     pub fn set_next_commit(&mut self) -> anyhow::Result<(String, String)> {
         let next_commit_id = {
             let next_commit = self.find_next_commit()?;
-            if let Some(next_commit) = next_commit {
-                Some(next_commit.id())
-            } else {
-                None
-            }
+            next_commit.map(|next_commit| next_commit.id())
         };
 
         if let Some(next_commit_id) = next_commit_id {
@@ -90,7 +86,7 @@ impl RepositoryInfo {
     }
 
     pub fn get_content(&mut self, filename: String) -> anyhow::Result<Vec<CommitRow>> {
-        if filename == "not found".to_owned() {
+        if filename == *"not found" {
             return Ok(vec![]);
         }
         let path = Path::new(&filename);
@@ -108,7 +104,7 @@ impl RepositoryInfo {
                 let signature = hunk.orig_signature();
                 let author = signature.name().unwrap_or("Unknown");
                 let commit_id = hunk.final_commit_id();
-                let line_number = hunk.final_start_line();
+                // let line_number = hunk.final_start_line();
                 let row = CommitRow::new(author.to_owned(), commit_id, i + 1, line);
                 content.push(row);
             }
@@ -147,28 +143,4 @@ impl RepositoryInfo {
 
         Ok(results)
     }
-}
-
-fn print_blame(
-    repo: &Repository,
-    path: &Path,
-    blob: Blob,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let blame = repo.blame_file(path, None)?;
-    let reader = BufReader::new(blob.content());
-
-    for (i, line) in reader.lines().enumerate() {
-        if let (Ok(line), Some(hunk)) = (line, blame.get_line(i + 1)) {
-            let signature = hunk.orig_signature();
-            let author = signature.name().unwrap_or("Unknown");
-            let commit_id = hunk.final_commit_id();
-            let line_number = hunk.final_start_line();
-            println!(
-                "Line {} - Author: {}, Commit: {}, Line {}",
-                line_number, author, commit_id, line
-            );
-        }
-    }
-
-    Ok(())
 }

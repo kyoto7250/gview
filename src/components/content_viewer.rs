@@ -4,7 +4,6 @@ use crossterm::event::KeyCode;
 use ratatui::{
     layout::Rect,
     style::{Color, Style, Stylize},
-    text::{Line, Span},
     widgets::{Block, Paragraph, Wrap},
     Frame,
 };
@@ -21,11 +20,11 @@ pub enum ShowMode {
 
 impl ShowMode {
     fn next(&mut self) -> ShowMode {
-        return match self {
+        match self {
             Self::WithLine => Self::WithBlame,
             Self::WithBlame => Self::NoLine,
             Self::NoLine => Self::WithLine,
-        };
+        }
     }
 
     fn concat(&mut self, rows: Vec<CommitRow>) -> String {
@@ -67,10 +66,10 @@ pub struct ContentViewer {
 impl ContentViewer {
     pub fn new(repository: Arc<Mutex<RepositoryInfo>>) -> Self {
         Self {
-            focus: Focus::OFF,
+            focus: Focus::Off,
             title: "Content Viewer".to_owned(),
             content: "".to_owned(),
-            repository: repository,
+            repository,
             context_size: 0,
             height: 0,
             scroll_position: 0,
@@ -82,7 +81,7 @@ impl ContentViewer {
         match message {
             Message::Once(OnceOperation::ShowFile { file }) => {
                 // update content view
-                self.title = file.to_owned();
+                file.clone_into(&mut self.title);
                 let mut repository = self.repository.lock().unwrap();
 
                 if let Ok(rows) = repository.get_content(file.to_owned()) {
@@ -90,7 +89,7 @@ impl ContentViewer {
                     self.scroll_position = 0
                 } else {
                     return Message::Error {
-                        message: "failed to get content".to_owned(),
+                        _message: "failed to get content".to_owned(),
                     };
                 }
             }
@@ -106,10 +105,9 @@ impl OperatableComponent for ContentViewer {
         let contents: Vec<String> = self
             .content
             .lines()
-            .into_iter()
             .skip(self.scroll_position)
             .take(rect.height as usize)
-            .map(|line| String::from(format!("{}\n", line)))
+            .map(|line| format!("{}\n", line))
             .collect();
 
         let paragraph = Paragraph::new(contents.concat())
@@ -123,8 +121,8 @@ impl OperatableComponent for ContentViewer {
 
     fn process_focus(&mut self) {
         match self.focus {
-            Focus::OFF => self.focus = Focus::ON,
-            Focus::ON => self.focus = Focus::OFF,
+            Focus::Off => self.focus = Focus::ON,
+            Focus::ON => self.focus = Focus::Off,
         }
     }
 
@@ -137,8 +135,7 @@ impl OperatableComponent for ContentViewer {
             }
             KeyCode::Down => {
                 // 4 is the using frame size
-                if self.scroll_position + 1 <= 4 + self.context_size.saturating_sub(1 + self.height)
-                {
+                if self.scroll_position < 4 + self.context_size.saturating_sub(1 + self.height) {
                     self.scroll_position += 1;
                 }
             }
@@ -150,7 +147,7 @@ impl OperatableComponent for ContentViewer {
                     self.scroll_position = 0
                 } else {
                     return Message::Error {
-                        message: "failed to get content".to_owned(),
+                        _message: "failed to get content".to_owned(),
                     };
                 }
             }
@@ -165,14 +162,14 @@ impl OperatableComponent for ContentViewer {
         // 2. MultipleTimes -> NoAction
         // 3. Once -> NoAction
         // 4. NoAction -> NoAction
-        return match (message, self._handle_message(message)) {
+        match (message, self._handle_message(message)) {
             (Message::MultipleTimes(_), Message::MultipleTimes(_)) => unreachable!(),
             (Message::Once(_), Message::MultipleTimes(_)) => unreachable!(),
             (Message::Once(_), Message::Once(_)) => unreachable!(),
             (Message::NoAction, Message::MultipleTimes(_)) => unreachable!(),
             (Message::NoAction, Message::Once(_)) => unreachable!(),
             (_, new_message) => new_message,
-        };
+        }
     }
 }
 
@@ -181,6 +178,6 @@ fn title_block(title: &str, focus: Focus) -> Block {
         .title(title.bold().into_left_aligned_line())
         .style(match focus {
             Focus::ON => Style::default(),
-            Focus::OFF => Style::default().fg(Color::DarkGray),
+            Focus::Off => Style::default().fg(Color::DarkGray),
         });
 }

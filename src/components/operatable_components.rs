@@ -11,7 +11,7 @@ pub enum Message {
     MultipleTimes(MultipleTimesOperation),
     Once(OnceOperation),
     NoAction,
-    Error { message: String },
+    Error { _message: String },
 }
 
 pub enum MultipleTimesOperation {
@@ -33,7 +33,7 @@ pub enum OnceOperation {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Focus {
-    OFF,
+    Off,
     ON,
 }
 
