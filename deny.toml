@@ -1,0 +1,17 @@
+# see: https://github.com/EmbarkStudios/cargo-deny
+
+[licenses]
+allow = [
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "MIT",
+    "Unicode-DFS-2016"
+]
+
+[advisories]
+yanked = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "warn"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
