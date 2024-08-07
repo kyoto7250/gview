@@ -2,6 +2,7 @@
 name = "gview"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 ratatui = { version = "0.27", features = ["unstable-rendered-line-info"]}

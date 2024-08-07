@@ -33,6 +33,14 @@ jobs:
               rustup component add clippy
               rustup component add rustfmt    
 
+    dependencies:
+        name: Run Deny
+        needs: setup
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: EmbarkStudios/cargo-deny-action@v2
+
     format:
         name: Run Rustfmt
         runs-on: ubuntu-latest
@@ -49,3 +57,4 @@ jobs:
             - uses: actions/checkout@v4
             - name: Run clippy
               run: cargo clippy -- -D warnings
+
