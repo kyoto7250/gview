@@ -92,10 +92,10 @@ impl OperatableComponent for CommitViewer {
 }
 
 fn title_block(title: &str, focus: Focus) -> Block {
-    return Block::bordered()
+    Block::bordered()
         .title(title.bold().into_left_aligned_line())
         .style(match focus {
             Focus::ON => Style::default(),
             Focus::Off => Style::default().fg(Color::DarkGray),
-        });
+        })
 }
