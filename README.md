@@ -1,5 +1,6 @@
 # gview - A TUI Viewer for Specific Git Commit IDs
 
+![gview image](resources/gview.png)
 
 gview is a TUI application that lets you inspect files or search for files by traversing Git commit IDs.
 
