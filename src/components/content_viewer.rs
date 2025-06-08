@@ -28,7 +28,7 @@ impl ShowMode {
     }
 
     fn concat(&mut self, rows: Vec<CommitRow>) -> String {
-        return match self {
+        match self {
             Self::NoLine => rows
                 .iter()
                 .map(|row| row.line.to_owned())
@@ -48,7 +48,7 @@ impl ShowMode {
                     .collect::<Vec<String>>()
                     .join("\n")
             }
-        };
+        }
     }
 }
 
@@ -174,10 +174,10 @@ impl OperatableComponent for ContentViewer {
 }
 
 fn title_block(title: &str, focus: Focus) -> Block {
-    return Block::bordered()
+    Block::bordered()
         .title(title.bold().into_left_aligned_line())
         .style(match focus {
             Focus::ON => Style::default(),
             Focus::Off => Style::default().fg(Color::DarkGray),
-        });
+        })
 }
