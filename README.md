@@ -14,8 +14,18 @@ cargo install gview
 ```
 
 # default keymap
-```
-```
+
+| Key | Description |
+| --- | ----------- |
+| <kbd>Enter</kbd> in Match | Jump to the file list |
+| <kbd>Enter</kbd> in File List | Open the selected file |
+| <kbd>↑</kbd>, <kbd>↓</kbd> in Match | Navigate filter options |
+| <kbd>↑</kbd>, <kbd>↓</kbd> in File List | Navigate through files |
+| <kbd>↑</kbd>, <kbd>↓</kbd> in Commit ID | Switch between commits |
+| <kbd>↑</kbd>, <kbd>↓</kbd> in File Contents | Scroll through file content |
+| <kbd>Tab</kbd> | Move to the next section |
+| <kbd>←</kbd>, <kbd>→</kbd> in File List | Scroll file names horizontally |
+
 
 # contribution
 
