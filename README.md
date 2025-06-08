@@ -24,4 +24,4 @@ There are still several implementation tasks that would improve usability and ar
 
 
 # LICENSE
-This project is licensed under the Apache 2.0 License.
+This project is licensed under the MIT License.
