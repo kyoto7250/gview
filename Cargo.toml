@@ -1,8 +1,16 @@
 [package]
 name = "gview"
 version = "0.1.0"
+authors = ["Kyoto7250 <kyoto7250@aol.com>"]
 edition = "2021"
 license = "MIT"
+homepage = "https://github.com/kyoto7250/gview"
+repository = "https://github.com/kyoto7250/gview"
+readme = "README.md"
+description = "A TUI Viewer for Specific Git Commit IDs"
+keywords = ["git", "cli", "Rust", "tui", "terminal"]
+categories = ["command-line-utilities"]
+
 
 [dependencies]
 ratatui = { version = "0.27", features = ["unstable-rendered-line-info"]}
