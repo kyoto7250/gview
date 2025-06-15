@@ -10,12 +10,14 @@ use ratatui::{
 
 use crate::repository::RepositoryInfo;
 
-use super::operatable_components::{Focus, Message, MultipleTimesOperation, OperatableComponent};
+use super::operatable_components::{
+    Focus, Message, MultipleTimesOperation, OnceOperation, OperatableComponent,
+};
 
 pub struct CommitViewer {
     focus: Focus,
     content: String,
-    repository: Arc<Mutex<RepositoryInfo>>,
+    pub repository: Arc<Mutex<RepositoryInfo>>,
 }
 
 impl CommitViewer {
@@ -48,7 +50,7 @@ impl CommitViewer {
 impl OperatableComponent for CommitViewer {
     fn draw(&mut self, frame: &mut Frame, rect: Rect) {
         let right_paragraph = Paragraph::new(self.content.to_owned())
-            .block(title_block("current commit", self.focus));
+            .block(title_block("current commit (g: go to commit)", self.focus));
         frame.render_widget(right_paragraph, rect);
     }
     fn process_focus(&mut self) {
@@ -68,6 +70,9 @@ impl OperatableComponent for CommitViewer {
                 let mut binding = self.repository.lock().unwrap();
                 let _ = binding.set_next_commit();
                 return Message::MultipleTimes(MultipleTimesOperation::ChangeShowCommit);
+            }
+            KeyCode::Char('g') => {
+                return Message::Once(OnceOperation::OpenCommitModal);
             }
             _ => {}
         }

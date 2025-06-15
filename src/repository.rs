@@ -126,6 +126,40 @@ impl RepositoryInfo {
 
         Ok(content)
     }
+    pub fn get_commit_history(&self) -> anyhow::Result<Vec<(String, String)>> {
+        let mut revwalk = self.repository.revwalk()?;
+        revwalk.push_head()?;
+        revwalk.set_sorting(git2::Sort::TIME)?;
+
+        let mut commits = Vec::new();
+        for oid_result in revwalk {
+            let oid = oid_result?;
+            let commit = self.repository.find_commit(oid)?;
+            let commit_message = commit
+                .message()
+                .unwrap_or("No commit message")
+                .lines()
+                .next()
+                .unwrap_or("")
+                .to_string();
+            commits.push((oid.to_string(), commit_message));
+        }
+
+        Ok(commits)
+    }
+
+    pub fn get_current_commit_id(&self) -> String {
+        self.oid.to_string()
+    }
+
+    pub fn set_commit_by_id(&mut self, commit_id: &str) -> anyhow::Result<()> {
+        let oid = git2::Oid::from_str(commit_id)?;
+        if self.repository.find_commit(oid).is_ok() {
+            self.oid = oid;
+        }
+        Ok(())
+    }
+
     pub fn recursive_walk(&mut self) -> anyhow::Result<Vec<String>> {
         let head = self.repository.find_commit(self.oid)?;
         let tree = head.tree()?;

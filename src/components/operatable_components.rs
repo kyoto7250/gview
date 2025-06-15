@@ -55,6 +55,9 @@ pub enum OnceOperation {
     ShowFile { file: String },
     JumpToContentView,
     JumpToFiler,
+    OpenCommitModal,
+    CloseCommitModal,
+    SetCommitById { commit_id: String },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

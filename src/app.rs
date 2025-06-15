@@ -1,5 +1,6 @@
 use crate::{
     components::{
+        commit_modal::CommitModal,
         commit_viewer::CommitViewer,
         content_viewer::ContentViewer,
         filer::Filer,
@@ -54,6 +55,7 @@ pub struct App {
     filer: Filer,
     commit_viewer: CommitViewer,
     content_viewer: ContentViewer,
+    commit_modal: CommitModal,
 }
 
 impl App {
@@ -70,6 +72,7 @@ impl App {
             filer: Filer::new(Arc::clone(&repository)),
             commit_viewer: CommitViewer::new(Arc::clone(&repository)),
             content_viewer: ContentViewer::new(Arc::clone(&repository)),
+            commit_modal: CommitModal::new(Arc::clone(&repository)),
         };
         app.handle_message(Message::MultipleTimes(MultipleTimesOperation::SetUp {
             repository: Arc::clone(&repository),
@@ -87,6 +90,11 @@ impl App {
     }
 
     fn process_events(&mut self, code: KeyCode) -> Message {
+        // If modal is open, handle modal events first
+        if self.commit_modal.is_open() {
+            return self.commit_modal.process_events(code);
+        }
+
         match self.focus_state {
             FocusState::Commit => self.commit_viewer.process_events(code),
             FocusState::Filter => self.filter.process_events(code),
@@ -98,12 +106,31 @@ impl App {
     #[allow(unconditional_recursion)]
     fn handle_message(&mut self, message: Message) {
         // handle itself
-        match message {
+        match &message {
             Message::NoAction => return,
             Message::Once(OnceOperation::JumpToContentView) => {
                 self.focus_state = FocusState::Viewer
             }
             Message::Once(OnceOperation::JumpToFiler) => self.focus_state = FocusState::Filer,
+            Message::Once(OnceOperation::SetCommitById { commit_id }) => {
+                // Close modal and set commit
+                let commit_id = commit_id.clone();
+                let success = {
+                    if let Ok(mut repo) = self.commit_viewer.repository.lock() {
+                        repo.set_commit_by_id(&commit_id).is_ok()
+                    } else {
+                        false
+                    }
+                };
+
+                self.handle_message(Message::Once(OnceOperation::CloseCommitModal));
+                if success {
+                    self.handle_message(Message::MultipleTimes(
+                        MultipleTimesOperation::ChangeShowCommit,
+                    ));
+                }
+                return; // Early return to avoid processing this message further
+            }
             _ => {}
         }
 
@@ -117,6 +144,9 @@ impl App {
         self.handle_message(new_message);
 
         let new_message = self.commit_viewer.handle_message(&message);
+        self.handle_message(new_message);
+
+        let new_message = self.commit_modal.handle_message(&message);
         self.handle_message(new_message);
     }
 
@@ -202,6 +232,10 @@ impl App {
         self.filer.draw(frame, left_chunks[1]);
         self.commit_viewer.draw(frame, right_chunks[0]);
         self.content_viewer.draw(frame, right_chunks[1]);
+
+        // Draw modal on top if it's open
+        self.commit_modal.draw(frame, frame.size());
+
         Ok(())
     }
 }
