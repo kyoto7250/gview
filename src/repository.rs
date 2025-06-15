@@ -178,7 +178,7 @@ impl RepositoryInfo {
                 }
             }
 
-            found_oid.ok_or_else(|| anyhow::anyhow!("Commit not found"))?
+            found_oid.ok_or_else(|| anyhow::anyhow!(format!("Commit '{}' not found", commit_id)))?
         };
 
         // Verify the commit exists before setting it
