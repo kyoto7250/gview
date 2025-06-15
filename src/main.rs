@@ -20,7 +20,7 @@ struct Args {
 
     /// Print version
     #[arg(short = 'v', long = "version", action = clap::ArgAction::Version)]
-    version: bool,
+    _version: (),
 }
 
 use app::Tui;
