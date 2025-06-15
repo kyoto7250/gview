@@ -7,6 +7,7 @@ use ratatui::{layout::Rect, Frame};
 use super::filter::FilterMode;
 
 // rust enum pass the operation command
+#[derive(Debug, PartialEq)]
 pub enum Message {
     MultipleTimes(MultipleTimesOperation),
     Once(OnceOperation),
@@ -14,6 +15,7 @@ pub enum Message {
     Error { _message: String },
 }
 
+#[derive(Debug)]
 pub enum MultipleTimesOperation {
     Filtering {
         query: String,
@@ -25,13 +27,37 @@ pub enum MultipleTimesOperation {
     ChangeShowCommit,
 }
 
+impl PartialEq for MultipleTimesOperation {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                MultipleTimesOperation::Filtering {
+                    query: q1,
+                    mode: m1,
+                },
+                MultipleTimesOperation::Filtering {
+                    query: q2,
+                    mode: m2,
+                },
+            ) => q1 == q2 && m1 == m2,
+            (
+                MultipleTimesOperation::ChangeShowCommit,
+                MultipleTimesOperation::ChangeShowCommit,
+            ) => true,
+            (MultipleTimesOperation::SetUp { .. }, MultipleTimesOperation::SetUp { .. }) => true, // Compare by type only
+            _ => false,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum OnceOperation {
     ShowFile { file: String },
     JumpToContentView,
     JumpToFiler,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Focus {
     Off,
     ON,

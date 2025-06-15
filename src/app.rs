@@ -26,7 +26,7 @@ use std::{
 // A simple alias for the terminal type used in this example.
 pub type Tui = Terminal<CrosstermBackend<Stdout>>;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum FocusState {
     Filter,
     Filer,
@@ -203,5 +203,36 @@ impl App {
         self.commit_viewer.draw(frame, right_chunks[0]);
         self.content_viewer.draw(frame, right_chunks[1]);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_focus_state_next_transitions() {
+        assert_eq!(FocusState::Filter.next(), FocusState::Filer);
+        assert_eq!(FocusState::Filer.next(), FocusState::Commit);
+        assert_eq!(FocusState::Commit.next(), FocusState::Viewer);
+        assert_eq!(FocusState::Viewer.next(), FocusState::Filter);
+    }
+
+    #[test]
+    fn test_focus_state_cycle_complete() {
+        let mut state = FocusState::Filter;
+
+        // Test complete cycle
+        state = state.next();
+        assert_eq!(state, FocusState::Filer);
+
+        state = state.next();
+        assert_eq!(state, FocusState::Commit);
+
+        state = state.next();
+        assert_eq!(state, FocusState::Viewer);
+
+        state = state.next();
+        assert_eq!(state, FocusState::Filter); // Back to start
     }
 }

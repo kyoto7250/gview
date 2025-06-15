@@ -1,0 +1,39 @@
+---
+source: src/components/commit_viewer.rs
+expression: "format!(\"{:?}\", buffer)"
+snapshot_kind: text
+---
+Buffer {
+    area: Rect { x: 0, y: 0, width: 80, height: 24 },
+    content: [
+        "┌current commit────────────────────────────────────────────────────────────────┐",
+        "│commit123: Fix critical bug                                                   │",
+        "│                                                                              │",
+        "│This commit addresses a critical issue where the application                  │",
+        "│would crash under certain conditions. The fix includes:                       │",
+        "│- Better error handling                                                       │",
+        "│- Input validation                                                            │",
+        "│- Memory management improvements                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "└──────────────────────────────────────────────────────────────────────────────┘",
+    ],
+    styles: [
+        x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 1, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: BOLD,
+        x: 15, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+    ]
+}

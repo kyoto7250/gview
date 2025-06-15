@@ -1,0 +1,18 @@
+---
+source: src/components/filter.rs
+expression: "format!(\"{:?}\", buffer_unfocused)"
+snapshot_kind: text
+---
+Buffer {
+    area: Rect { x: 0, y: 0, width: 20, height: 5 },
+    content: [
+        "┌Partial Match─────┐",
+        "│test              │",
+        "│                  │",
+        "│                  │",
+        "└──────────────────┘",
+    ],
+    styles: [
+        x: 0, y: 0, fg: DarkGray, bg: Reset, underline: Reset, modifier: NONE,
+    ]
+}
