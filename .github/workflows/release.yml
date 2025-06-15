@@ -15,8 +15,7 @@ jobs:
     outputs:
       gview_version: ${{ env.GVIEW_VERSION }}
     env:
-      # For some builds, we use cross to test on 32-bit and big-endian
-      # systems.
+      # For some builds, we use cross to test on 32-bit and big-endian systems.
       CARGO: cargo
       # When CARGO is set to CROSS, this is set to `--target matrix.target`.
       TARGET_FLAGS: ""
@@ -40,7 +39,7 @@ jobs:
         - build: macos
           os: macos-latest
           rust: stable
-          target: x86_64-apple-darwin
+          target: aarch64-apple-darwin
         - build: win-msvc
           os: windows-latest
           rust: stable
@@ -72,16 +71,29 @@ jobs:
         toolchain: ${{ matrix.rust }}
         target: ${{ matrix.target }}
 
-    - name: Set up OpenSSL for macOS
-      if: matrix.os == 'macos-latest'
+    - name: Install Linux dependencies
+      if: matrix.build == 'linux'
       run: |
-        brew install openssl@3
-        echo "OPENSSL_DIR=$(brew --prefix openssl@3)" >> $GITHUB_ENV
-        echo "OPENSSL_INCLUDE_DIR=$(brew --prefix openssl@3)/include" >> $GITHUB_ENV
-        echo "OPENSSL_LIB_DIR=$(brew --prefix openssl@3)/lib" >> $GITHUB_ENV
-        echo "PKG_CONFIG_PATH=$(brew --prefix openssl@3)/lib/pkgconfig" >> $GITHUB_ENV
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev pkg-config build-essential
+
+    - name: Install ARM cross-compilation dependencies
+      if: matrix.build == 'linux-arm'
+      run: |
+        sudo dpkg --add-architecture armhf
+        sudo apt-get update
+        sudo apt-get install -y libssl-dev:armhf pkg-config build-essential
+
+    - name: Install macOS dependencies
+      if: matrix.build == 'macos'
+      run: |
+        # ARM64 macOS uses Homebrew default path
+        brew install openssl@3 pkg-config
+        echo "OPENSSL_DIR=/opt/homebrew/opt/openssl@3" >> $GITHUB_ENV
+        echo "PKG_CONFIG_PATH=/opt/homebrew/opt/openssl@3/lib/pkgconfig" >> $GITHUB_ENV
 
     - name: Use Cross
+      if: matrix.build == 'linux-arm'
       shell: bash
       run: |
         cargo install cross
@@ -97,6 +109,9 @@ jobs:
 
     - name: Build release binary
       run: ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
+      env:
+        # Force static linking for cross-compilation consistency
+        OPENSSL_STATIC: 1
 
     - name: Strip release binary (linux and macos)
       if: matrix.build == 'linux' || matrix.build == 'macos'
@@ -119,7 +134,7 @@ jobs:
 
         cp {README.md,LICENSE} "$staging/"
 
-        if [ "${{ matrix.os }}" = "windows-2019" ]; then
+        if [ "${{ matrix.os }}" = "windows-latest" ]; then
           cp "target/${{ matrix.target }}/release/gview.exe" "$staging/"
           7z a "$staging.zip" "$staging"
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
