@@ -80,9 +80,9 @@ jobs:
     - name: Install ARM cross-compilation dependencies
       if: matrix.build == 'linux-arm'
       run: |
-        sudo dpkg --add-architecture armhf
+        # Skip native ARM packages since we're using cross for compilation
         sudo apt-get update
-        sudo apt-get install -y libssl-dev:armhf pkg-config build-essential
+        sudo apt-get install -y pkg-config build-essential
 
     - name: Install macOS dependencies
       if: matrix.build == 'macos'
@@ -98,6 +98,12 @@ jobs:
       run: |
         cargo install cross
         echo "CARGO=cross" >> $GITHUB_ENV
+        echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
+        echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
+
+    - name: Set target flags for native builds
+      shell: bash
+      run: |
         echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
         echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
 
