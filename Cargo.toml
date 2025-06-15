@@ -21,6 +21,7 @@ anyhow = "1.0.86"
 crossterm = "0.27.0"
 color-eyre = "0.6.3"
 regex = "1.10.5"
+clap = { version = "4.4", features = ["derive"] }
 
 [dev-dependencies]
 insta = "1.34"

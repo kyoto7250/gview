@@ -6,6 +6,17 @@ use std::{
     panic,
 };
 
+use clap::Parser;
+
+#[derive(Parser)]
+#[command(name = "gview")]
+#[command(about = "A TUI Viewer for Specific Git Commit IDs")]
+struct Args {
+    /// Optional commit ID to start from
+    #[arg(short, long)]
+    commit: Option<String>,
+}
+
 use app::Tui;
 use color_eyre::{
     config::{EyreHook, HookBuilder, PanicHook},
@@ -62,14 +73,26 @@ pub fn restore_terminal() -> io::Result<()> {
 }
 
 fn main() -> color_eyre::Result<()> {
+    let args = Args::parse();
+
     let repository_info = repository::RepositoryInfo::new();
     if repository_info.is_err() {
         return Ok(());
     }
 
+    let mut repo_info = repository_info.unwrap();
+
+    // If a commit ID is provided, try to set it
+    if let Some(commit_id) = args.commit {
+        if repo_info.set_commit_by_id(&commit_id).is_err() {
+            eprintln!("Commit not found: {}", commit_id);
+            return Ok(());
+        }
+    }
+
     install_hooks()?;
     let mut terminal = init_terminal()?;
-    let mut app = app::App::new(repository_info.unwrap());
+    let mut app = app::App::new(repo_info);
     app.run(&mut terminal)?;
     restore_terminal()?;
     Ok(())
