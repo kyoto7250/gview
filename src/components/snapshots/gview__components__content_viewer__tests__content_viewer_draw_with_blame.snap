@@ -1,0 +1,39 @@
+---
+source: src/components/content_viewer.rs
+expression: "format!(\"{:?}\", buffer)"
+snapshot_kind: text
+---
+Buffer {
+    area: Rect { x: 0, y: 0, width: 80, height: 24 },
+    content: [
+        "┌blame_example.rs──────────────────────────────────────────────────────────────┐",
+        "│abc123f | use std::io;                                                        │",
+        "│abc123f |                                                                     │",
+        "│456def9 | fn main() -> Result<(), Box<dyn std::error::Error>> {               │",
+        "│456def9 |     let input = std::io::stdin();                                   │",
+        "│789ghi2 |     println!("Input received");                                     │",
+        "│789ghi2 |     Ok(())                                                          │",
+        "│abc123f | }                                                                   │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "└──────────────────────────────────────────────────────────────────────────────┘",
+    ],
+    styles: [
+        x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 1, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: BOLD,
+        x: 17, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+    ]
+}

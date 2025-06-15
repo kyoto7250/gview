@@ -13,7 +13,7 @@ use super::operatable_components::{
 };
 
 #[allow(clippy::enum_variant_names)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FilterMode {
     PartialMatch,
     FuzzyMatch,
@@ -256,5 +256,185 @@ impl OperatableComponent for Filter {
             (Message::NoAction, Message::Once(_)) => unreachable!(),
             (_, new_message) => new_message,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use insta::assert_snapshot;
+    use ratatui::{backend::TestBackend, Terminal};
+
+    #[test]
+    fn test_filter_mode_transitions() {
+        assert_eq!(FilterMode::PartialMatch.next(), FilterMode::FuzzyMatch);
+        assert_eq!(FilterMode::FuzzyMatch.next(), FilterMode::RegularMatch);
+        assert_eq!(FilterMode::RegularMatch.next(), FilterMode::PartialMatch);
+
+        assert_eq!(FilterMode::PartialMatch.prev(), FilterMode::RegularMatch);
+        assert_eq!(FilterMode::FuzzyMatch.prev(), FilterMode::PartialMatch);
+        assert_eq!(FilterMode::RegularMatch.prev(), FilterMode::FuzzyMatch);
+    }
+
+    #[test]
+    fn test_filter_mode_partial_match() {
+        let items = vec!["hello".to_string(), "world".to_string(), "help".to_string()];
+        let query = "hel".to_string();
+        let result = FilterMode::PartialMatch.filter(items, &query);
+        assert_eq!(result, vec!["hello", "help"]);
+    }
+
+    #[test]
+    fn test_filter_mode_partial_match_empty_query() {
+        let items = vec!["hello".to_string(), "world".to_string()];
+        let query = "".to_string();
+        let result = FilterMode::PartialMatch.filter(items.clone(), &query);
+        assert_eq!(result, items);
+    }
+
+    #[test]
+    fn test_filter_mode_fuzzy_match() {
+        let items = vec![
+            "hello_world".to_string(),
+            "help".to_string(),
+            "world".to_string(),
+        ];
+        let query = "hlw".to_string();
+        let result = FilterMode::FuzzyMatch.filter(items, &query);
+        assert_eq!(result[0], "hello_world"); // Should match best
+    }
+
+    #[test]
+    fn test_filter_mode_regular_match_valid() {
+        let items = vec![
+            "hello123".to_string(),
+            "world456".to_string(),
+            "test".to_string(),
+        ];
+        let query = r"\d+".to_string(); // Match digits
+        let result = FilterMode::RegularMatch.filter(items, &query);
+        assert_eq!(result, vec!["hello123", "world456"]);
+    }
+
+    #[test]
+    fn test_filter_mode_regular_match_invalid() {
+        let items = vec!["hello".to_string(), "world".to_string()];
+        let query = "[".to_string(); // Invalid regex
+        let result = FilterMode::RegularMatch.filter(items, &query);
+        assert_eq!(result, vec!["error"]);
+    }
+
+    #[test]
+    fn test_filter_cursor_movement() {
+        let mut filter = Filter::new();
+        filter.input = "hello".to_string();
+        filter.character_index = 0;
+
+        filter.move_cursor_right();
+        assert_eq!(filter.character_index, 1);
+
+        filter.move_cursor_right();
+        assert_eq!(filter.character_index, 2);
+
+        filter.move_cursor_left();
+        assert_eq!(filter.character_index, 1);
+
+        filter.move_cursor_left();
+        assert_eq!(filter.character_index, 0);
+
+        // Test bounds
+        filter.move_cursor_left();
+        assert_eq!(filter.character_index, 0); // Should stay at 0
+    }
+
+    #[test]
+    fn test_filter_char_insertion() {
+        let mut filter = Filter::new();
+        filter.enter_char('h');
+        assert_eq!(filter.input, "h");
+        assert_eq!(filter.character_index, 1);
+
+        filter.enter_char('i');
+        assert_eq!(filter.input, "hi");
+        assert_eq!(filter.character_index, 2);
+    }
+
+    #[test]
+    fn test_filter_char_deletion() {
+        let mut filter = Filter::new();
+        filter.input = "hello".to_string();
+        filter.character_index = 5;
+
+        filter.delete_char();
+        assert_eq!(filter.input, "hell");
+        assert_eq!(filter.character_index, 4);
+
+        filter.delete_char();
+        assert_eq!(filter.input, "hel");
+        assert_eq!(filter.character_index, 3);
+
+        // Test deletion at beginning
+        filter.character_index = 0;
+        filter.delete_char();
+        assert_eq!(filter.input, "hel"); // Should not change
+        assert_eq!(filter.character_index, 0);
+    }
+
+    #[test]
+    fn test_filter_draw_snapshot() {
+        let mut filter = Filter::new();
+        filter.input = "test input".to_string();
+        filter.mode = FilterMode::FuzzyMatch;
+        filter.focus = Focus::ON;
+
+        let backend = TestBackend::new(40, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|frame| {
+                let rect = Rect::new(0, 0, 40, 10);
+                filter.draw(frame, rect);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        assert_snapshot!(format!("{:?}", buffer));
+    }
+
+    #[test]
+    fn test_filter_draw_focused_vs_unfocused() {
+        let mut filter_focused = Filter::new();
+        filter_focused.input = "test".to_string();
+        filter_focused.focus = Focus::ON;
+
+        let mut filter_unfocused = Filter::new();
+        filter_unfocused.input = "test".to_string();
+        filter_unfocused.focus = Focus::Off;
+
+        let backend_focused = TestBackend::new(20, 5);
+        let mut terminal_focused = Terminal::new(backend_focused).unwrap();
+
+        let backend_unfocused = TestBackend::new(20, 5);
+        let mut terminal_unfocused = Terminal::new(backend_unfocused).unwrap();
+
+        terminal_focused
+            .draw(|frame| {
+                let rect = Rect::new(0, 0, 20, 5);
+                filter_focused.draw(frame, rect);
+            })
+            .unwrap();
+
+        terminal_unfocused
+            .draw(|frame| {
+                let rect = Rect::new(0, 0, 20, 5);
+                filter_unfocused.draw(frame, rect);
+            })
+            .unwrap();
+
+        let buffer_focused = terminal_focused.backend().buffer();
+        let buffer_unfocused = terminal_unfocused.backend().buffer();
+
+        assert_snapshot!("focused", format!("{:?}", buffer_focused));
+        assert_snapshot!("unfocused", format!("{:?}", buffer_unfocused));
     }
 }

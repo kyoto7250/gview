@@ -1,0 +1,39 @@
+---
+source: src/components/content_viewer.rs
+expression: "format!(\"{:?}\", buffer)"
+snapshot_kind: text
+---
+Buffer {
+    area: Rect { x: 0, y: 0, width: 80, height: 24 },
+    content: [
+        "┌lib.rs────────────────────────────────────────────────────────────────────────┐",
+        "│pub fn add(left: usize, right: usize) -> usize {                              │",
+        "│    left + right                                                              │",
+        "│}                                                                             │",
+        "│                                                                              │",
+        "│#[cfg(test)]                                                                  │",
+        "│mod tests {                                                                   │",
+        "│    use super::*;                                                             │",
+        "│                                                                              │",
+        "│    #[test]                                                                   │",
+        "│    fn it_works() {                                                           │",
+        "│        let result = add(2, 2);                                               │",
+        "│        assert_eq!(result, 4);                                                │",
+        "│    }                                                                         │",
+        "│}                                                                             │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "└──────────────────────────────────────────────────────────────────────────────┘",
+    ],
+    styles: [
+        x: 0, y: 0, fg: DarkGray, bg: Reset, underline: Reset, modifier: NONE,
+        x: 1, y: 0, fg: DarkGray, bg: Reset, underline: Reset, modifier: BOLD,
+        x: 7, y: 0, fg: DarkGray, bg: Reset, underline: Reset, modifier: NONE,
+    ]
+}

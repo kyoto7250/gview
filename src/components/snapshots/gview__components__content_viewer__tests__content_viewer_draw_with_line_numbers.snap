@@ -1,0 +1,39 @@
+---
+source: src/components/content_viewer.rs
+expression: "format!(\"{:?}\", buffer)"
+snapshot_kind: text
+---
+Buffer {
+    area: Rect { x: 0, y: 0, width: 80, height: 24 },
+    content: [
+        "┌example.rs────────────────────────────────────────────────────────────────────┐",
+        "│1 | use std::collections::HashMap;                                            │",
+        "│2 |                                                                           │",
+        "│3 | fn main() {                                                               │",
+        "│4 |     let mut map = HashMap::new();                                         │",
+        "│5 |     map.insert("key", "value");                                           │",
+        "│6 |     println!("{:?}", map);                                                │",
+        "│7 | }                                                                         │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "│                                                                              │",
+        "└──────────────────────────────────────────────────────────────────────────────┘",
+    ],
+    styles: [
+        x: 0, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+        x: 1, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: BOLD,
+        x: 11, y: 0, fg: Reset, bg: Reset, underline: Reset, modifier: NONE,
+    ]
+}

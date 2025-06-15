@@ -6,6 +6,7 @@ use std::{
 
 const MAX_FILE_SIZE: usize = 16 * 1024; // 16KB
 
+#[derive(Debug)]
 pub struct CommitRow {
     pub _author: String,
     pub commit: Oid,
@@ -29,12 +30,25 @@ pub struct RepositoryInfo {
     oid: Oid,
 }
 
+impl std::fmt::Debug for RepositoryInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RepositoryInfo")
+            .field("oid", &self.oid)
+            .finish()
+    }
+}
+
 impl RepositoryInfo {
     pub fn new() -> anyhow::Result<Self> {
         let repo_path = std::env::current_dir()?;
         let repository = Repository::discover(repo_path)?;
         let oid = repository.head()?.target().unwrap();
         Ok(Self { repository, oid })
+    }
+
+    // NOTE: this function should only be used during testing.
+    pub fn _from_parts(repository: Repository, oid: Oid) -> Self {
+        Self { repository, oid }
     }
 
     pub fn current_commit(&mut self) -> anyhow::Result<(String, String)> {
@@ -142,5 +156,283 @@ impl RepositoryInfo {
         });
 
         Ok(results)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+    use std::fs;
+    use std::io::Write;
+
+    fn setup_test_repo_with_file() -> (Repository, String) {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let test_dir = env::temp_dir().join(format!("gview_test_repo_{}", timestamp));
+        let _ = fs::remove_dir_all(&test_dir);
+        fs::create_dir_all(&test_dir).unwrap();
+
+        let repo = Repository::init(&test_dir).unwrap();
+
+        // Create a test file
+        let test_file_path = test_dir.join("test.txt");
+        let mut file = fs::File::create(&test_file_path).unwrap();
+        file.write_all(b"line 1\nline 2\nline 3\n").unwrap();
+
+        // Add and commit the file
+        let mut index = repo.index().unwrap();
+        index.add_path(std::path::Path::new("test.txt")).unwrap();
+        index.write().unwrap();
+
+        let signature = git2::Signature::new(
+            "Test User",
+            "test@example.com",
+            &git2::Time::new(1234567890, 0),
+        )
+        .unwrap();
+        let tree_id = index.write_tree().unwrap();
+        let tree = repo.find_tree(tree_id).unwrap();
+
+        let _ = repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "Add test file",
+            &tree,
+            &[],
+        );
+
+        drop(tree);
+        (repo, "test.txt".to_string())
+    }
+
+    fn setup_empty_repo() -> Repository {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let test_dir = env::temp_dir().join(format!("gview_empty_repo_{}", timestamp));
+        let _ = fs::remove_dir_all(&test_dir);
+        fs::create_dir_all(&test_dir).unwrap();
+
+        let repo = Repository::init(&test_dir).unwrap();
+
+        let signature = git2::Signature::new(
+            "Test User",
+            "test@example.com",
+            &git2::Time::new(1234567890, 0),
+        )
+        .unwrap();
+        let tree_id = {
+            let mut index = repo.index().unwrap();
+            index.write_tree().unwrap()
+        };
+        let tree = repo.find_tree(tree_id).unwrap();
+
+        let _ = repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "Initial commit",
+            &tree,
+            &[],
+        );
+
+        drop(tree);
+        repo
+    }
+
+    #[test]
+    fn test_commit_row_new() {
+        let oid = Oid::from_str("0123456789abcdef0123456789abcdef01234567").unwrap();
+        let row = CommitRow::new(
+            "test_author".to_string(),
+            oid,
+            42,
+            "println!(\"Hello, world!\");".to_string(),
+        );
+
+        assert_eq!(row._author, "test_author");
+        assert_eq!(row.commit, oid);
+        assert_eq!(row.number, 42);
+        assert_eq!(row.line, "println!(\"Hello, world!\");");
+    }
+
+    #[test]
+    fn test_repository_info_current_commit() {
+        let repo = setup_empty_repo();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let mut repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let result = repo_info.current_commit().unwrap();
+        assert_eq!(result.0.len(), 40); // SHA length
+        assert_eq!(result.1, "Initial commit");
+    }
+
+    #[test]
+    fn test_repository_info_set_parent_commit() {
+        let (repo, _) = setup_test_repo_with_file();
+        let _head_commit = repo.head().unwrap().target().unwrap();
+
+        // Create a second commit
+        let signature = git2::Signature::new(
+            "Test User",
+            "test@example.com",
+            &git2::Time::new(1234567890, 0),
+        )
+        .unwrap();
+        let tree = repo
+            .head()
+            .unwrap()
+            .peel_to_commit()
+            .unwrap()
+            .tree()
+            .unwrap();
+        let parent_commit = repo.head().unwrap().peel_to_commit().unwrap();
+        let second_commit_oid = repo
+            .commit(
+                Some("HEAD"),
+                &signature,
+                &signature,
+                "Second commit",
+                &tree,
+                &[&parent_commit],
+            )
+            .unwrap();
+
+        drop(tree);
+        drop(parent_commit);
+
+        let mut repo_info = RepositoryInfo {
+            repository: repo,
+            oid: second_commit_oid,
+        };
+
+        let original_oid = repo_info.oid;
+        repo_info.set_parent_commit();
+
+        // Should now be pointing to the parent commit
+        assert_ne!(original_oid, repo_info.oid);
+    }
+
+    #[test]
+    fn test_repository_info_set_parent_commit_no_parent() {
+        let repo = setup_empty_repo();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let mut repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let original_oid = repo_info.oid;
+        repo_info.set_parent_commit();
+
+        // Should remain the same as it has no parent
+        assert_eq!(original_oid, repo_info.oid);
+    }
+
+    #[test]
+    fn test_get_content_not_found_special_case() {
+        let repo = setup_empty_repo();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let mut repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let result = repo_info.get_content("not found".to_string()).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_get_content_with_file() {
+        let (repo, filename) = setup_test_repo_with_file();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let mut repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let result = repo_info.get_content(filename).unwrap();
+        assert_eq!(result.len(), 3); // 3 lines
+        assert_eq!(result[0].line, "line 1");
+        assert_eq!(result[1].line, "line 2");
+        assert_eq!(result[2].line, "line 3");
+        assert_eq!(result[0].number, 1);
+        assert_eq!(result[1].number, 2);
+        assert_eq!(result[2].number, 3);
+    }
+
+    #[test]
+    fn test_recursive_walk_empty_repo() {
+        let repo = setup_empty_repo();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let mut repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let result = repo_info.recursive_walk().unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_recursive_walk_with_file() {
+        let (repo, _) = setup_test_repo_with_file();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let mut repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let result = repo_info.recursive_walk().unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], "test.txt");
+    }
+
+    #[test]
+    fn test_find_next_commit_no_next() {
+        let repo = setup_empty_repo();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let mut repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let result = repo_info.find_next_commit().unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_set_next_commit_no_next() {
+        let repo = setup_empty_repo();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let mut repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let original_oid = repo_info.oid;
+        let result = repo_info.set_next_commit().unwrap();
+
+        // Should remain the same as there's no next commit
+        assert_eq!(original_oid, repo_info.oid);
+        assert_eq!(result.1, "Initial commit");
     }
 }
