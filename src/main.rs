@@ -11,10 +11,16 @@ use clap::Parser;
 #[derive(Parser)]
 #[command(name = "gview")]
 #[command(about = "A TUI Viewer for Specific Git Commit IDs")]
+#[command(version)]
+#[command(disable_version_flag = true)]
 struct Args {
     /// Optional commit ID to start from
     #[arg(short, long)]
     commit: Option<String>,
+
+    /// Print version
+    #[arg(short = 'v', long = "version", action = clap::ArgAction::Version)]
+    version: bool,
 }
 
 use app::Tui;
