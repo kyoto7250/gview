@@ -35,19 +35,25 @@ impl ShowMode {
                 .collect::<Vec<String>>()
                 .join("\n"),
             Self::WithLine => {
-                // TODO: maximum size
+                let max_line_number = rows.iter().map(|row| row.number).max().unwrap_or(0);
+                let width = max_line_number.to_string().len();
                 rows.iter()
-                    .map(|row| format!("{} | {} ", row.number, row.line.to_owned()))
+                    .map(|row| {
+                        format!(
+                            "{:width$} | {} ",
+                            row.number,
+                            row.line.to_owned(),
+                            width = width
+                        )
+                    })
                     .collect::<Vec<String>>()
                     .join("\n")
             }
-            Self::WithBlame => {
-                // TODO: maximum size
-                rows.iter()
-                    .map(|row| format!("{} | {} ", row.commit, row.line.to_owned()))
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            }
+            Self::WithBlame => rows
+                .iter()
+                .map(|row| format!("{} | {} ", row.commit, row.line.to_owned()))
+                .collect::<Vec<String>>()
+                .join("\n"),
         }
     }
 }
@@ -355,6 +361,35 @@ mod tests {
         content_viewer.title = "scrolled.rs".to_string();
         content_viewer.scroll_position = 3;
         content_viewer.content = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10\nLine 11\nLine 12\nLine 13\nLine 14\nLine 15\nLine 16\nLine 17\nLine 18\nLine 19\nLine 20".to_string();
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|frame| {
+                let rect = ratatui::layout::Rect::new(0, 0, 80, 24);
+                content_viewer.draw(frame, rect);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        assert_snapshot!(format!("{:?}", buffer));
+    }
+
+    #[test]
+    fn test_content_viewer_line_number_alignment() {
+        let mock_repo = create_mock_repo();
+        let mut content_viewer = ContentViewer::new(mock_repo);
+        content_viewer.focus = Focus::ON;
+        content_viewer.title = "alignment_test.rs".to_string();
+        content_viewer.mode = ShowMode::WithLine;
+
+        // Test with line numbers up to 120 to verify proper alignment
+        let mut content_lines = Vec::new();
+        for i in 1..=120 {
+            content_lines.push(format!("{:3} | Line {}", i, i));
+        }
+        content_viewer.content = content_lines.join("\n");
 
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
