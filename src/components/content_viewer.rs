@@ -38,16 +38,22 @@ impl ShowMode {
                 let max_line_number = rows.iter().map(|row| row.number).max().unwrap_or(0);
                 let width = max_line_number.to_string().len();
                 rows.iter()
-                    .map(|row| format!("{:width$} | {} ", row.number, row.line.to_owned(), width = width))
+                    .map(|row| {
+                        format!(
+                            "{:width$} | {} ",
+                            row.number,
+                            row.line.to_owned(),
+                            width = width
+                        )
+                    })
                     .collect::<Vec<String>>()
                     .join("\n")
             }
-            Self::WithBlame => {
-                rows.iter()
-                    .map(|row| format!("{} | {} ", row.commit, row.line.to_owned()))
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            }
+            Self::WithBlame => rows
+                .iter()
+                .map(|row| format!("{} | {} ", row.commit, row.line.to_owned()))
+                .collect::<Vec<String>>()
+                .join("\n"),
         }
     }
 }
