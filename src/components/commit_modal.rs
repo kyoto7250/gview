@@ -37,7 +37,7 @@ impl CommitModal {
     }
 
     fn load_commits(&mut self) {
-        if let Ok(mut repo) = self.repository.lock() {
+        if let Ok(repo) = self.repository.lock() {
             if let Ok(history) = repo.get_commit_history() {
                 let current_commit_id = repo.get_current_commit_id();
                 self.commits = history;

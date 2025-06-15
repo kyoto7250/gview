@@ -126,7 +126,7 @@ impl RepositoryInfo {
 
         Ok(content)
     }
-    pub fn get_commit_history(&mut self) -> anyhow::Result<Vec<(String, String)>> {
+    pub fn get_commit_history(&self) -> anyhow::Result<Vec<(String, String)>> {
         let mut revwalk = self.repository.revwalk()?;
         revwalk.push_head()?;
         revwalk.set_sorting(git2::Sort::TIME)?;
