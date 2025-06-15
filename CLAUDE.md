@@ -2,37 +2,47 @@
 
 ## ✅ Snapshot Testing Policy (`cargo insta`)
 
-- Use snapshot tests **only** for TUI rendering output or full standard output/error.
-- Do **not** use snapshot tests for struct method logic or state verification.
-- Snapshot tests must cover the **entire output**, not just partial sections.
-- **Do not modify behavior** just for the purpose of making it snapshot-testable.
-- Avoid snapshot tests that only verify printed output.
-- Do **not** write tests that only check constant values or trivial behaviors.
+- Use snapshot tests **only** for full-screen TUI rendering or complete standard output/error.
+- Do **not** apply snapshot tests to struct methods or logic-level units.
+- Snapshot tests must capture **entire outputs**, not partial sections.
+- Do **not** alter runtime behavior just to support snapshot testing.
+- Do **not** write snapshot tests that merely check printed input/output or constant values.
+- Snapshot tests are meant to detect visual or full-output regressions, not internal logic.
+- Remove any snapshot tests that violate these rules.
 
 ## ✅ Unit Testing Policy
 
-- Use standard unit tests for logic inside functions and methods.
-- Be mindful to **cover all conditional branches** in logic.
-- **Add tests within the same file** as the code under test, not in a separate test module or file.
-- Avoid side effects in tests—**use mocks where needed** to isolate behavior.
+- Test struct methods and logic using **traditional unit tests**, not snapshots.
+- Ensure **all condition branches are covered**.
+- Add tests directly into the **same file** as the tested code.
+- Avoid test-side effects—**mock external dependencies** if necessary.
+- Do **not rely on printed values** or superficial assertions.
 
-## ✅ Security and Quality
+## ✅ Security and Safety
 
-- **Do not intentionally introduce security issues.**
+- **Never embed sensitive data** like `API_KEY`, file paths, personal user data, or internal directories in code or tests.
+- Do **not delete data** without explicit user confirmation.
+- **Do not use `panic!`** for error handling—handle all errors gracefully.
 - Follow **security best practices** at all times.
-- Avoid using `panic`; **do not terminate the program abruptly**.
-- Implement **explicit error handling** for all fallible operations.
+- Never simplify code at the expense of introducing security vulnerabilities.
 
 ## ✅ General Guidelines
 
-- Always run `cargo fmt` and `cargo clippy` before completing any task.
-- If a task fails after multiple attempts, **summarize the failure reason and ask for instructions**.
-- **Do not alter existing behavior** unless explicitly instructed.
+- Always run `cargo fmt` and `cargo clippy` before submitting code.
+- If a task fails repeatedly, **summarize what cannot be done and request further instructions**.
+- Unless explicitly instructed, **do not change existing behavior**.
 - Follow **Rust idioms and best practices**.
-- Consider edge cases, such as **empty input, missing files, or permission errors**.
+- Account for **edge cases** such as empty inputs, missing files, permission errors, etc.
 
 ## ✅ Coding Style
 
-- Write all comments in **English**.
-- Avoid obvious comments; **keep one concise comment per method** that conveys intent.
-- Prioritize **simplicity, speed, and predictability** over cleverness or abstraction.
+- Write all code comments in **English**.
+- Avoid obvious or redundant comments.
+- Prefer **one concise comment per method** to clarify intent when necessary.
+- Prioritize **simplicity, speed, and predictability** over clever abstractions.
+
+## ✅ Testing Philosophy
+
+- Snapshot tests are for **detecting full UI regressions**, not partial behavior.
+- Logic and flow must be tested using **unit or integration tests**, not snapshots.
+- **All functionality must be test-covered** without modifying production behavior.
