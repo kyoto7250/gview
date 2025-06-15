@@ -153,10 +153,37 @@ impl RepositoryInfo {
     }
 
     pub fn set_commit_by_id(&mut self, commit_id: &str) -> anyhow::Result<()> {
-        let oid = git2::Oid::from_str(commit_id)?;
-        if self.repository.find_commit(oid).is_ok() {
-            self.oid = oid;
-        }
+        let oid = if commit_id.len() == 40 {
+            // Full commit ID
+            git2::Oid::from_str(commit_id)?
+        } else {
+            // Short commit ID - need to resolve it
+            let mut revwalk = self.repository.revwalk()?;
+            revwalk.push_head()?;
+
+            let mut found_oid = None;
+            let mut match_count = 0;
+            for oid_result in revwalk {
+                let oid = oid_result?;
+                let oid_str = oid.to_string();
+                if oid_str.starts_with(commit_id) {
+                    found_oid = Some(oid);
+                    match_count += 1;
+                    if match_count > 1 {
+                        return Err(anyhow::anyhow!(
+                            "Ambiguous commit ID: multiple commits match '{}'",
+                            commit_id
+                        ));
+                    }
+                }
+            }
+
+            found_oid.ok_or_else(|| anyhow::anyhow!("Commit not found"))?
+        };
+
+        // Verify the commit exists before setting it
+        self.repository.find_commit(oid)?;
+        self.oid = oid;
         Ok(())
     }
 
@@ -310,6 +337,57 @@ mod tests {
         let result = repo_info.current_commit().unwrap();
         assert_eq!(result.0.len(), 40); // SHA length
         assert_eq!(result.1, "Initial commit");
+    }
+
+    #[test]
+    fn test_set_commit_by_id_full_hash() {
+        let (repo, _) = setup_test_repo_with_file();
+        let head_commit = repo.head().unwrap().target().unwrap();
+        let head_commit_str = head_commit.to_string();
+
+        let mut repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        // Test setting by full commit ID
+        let result = repo_info.set_commit_by_id(&head_commit_str);
+        assert!(result.is_ok());
+        assert_eq!(repo_info.oid, head_commit);
+    }
+
+    #[test]
+    fn test_set_commit_by_id_short_hash() {
+        let (repo, _) = setup_test_repo_with_file();
+        let head_commit = repo.head().unwrap().target().unwrap();
+        let head_commit_str = head_commit.to_string();
+        let short_commit = &head_commit_str[..7]; // Use 7 characters
+
+        let mut repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        // Test setting by short commit ID
+        let result = repo_info.set_commit_by_id(short_commit);
+        assert!(result.is_ok());
+        assert_eq!(repo_info.oid, head_commit);
+    }
+
+    #[test]
+    fn test_set_commit_by_id_invalid() {
+        let (repo, _) = setup_test_repo_with_file();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let mut repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        // Test setting by invalid commit ID
+        let result = repo_info.set_commit_by_id("invalid123");
+        assert!(result.is_err());
+        assert_eq!(repo_info.oid, head_commit); // Should remain unchanged
     }
 
     #[test]
