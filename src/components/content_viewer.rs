@@ -157,6 +157,17 @@ impl OperatableComponent for ContentViewer {
                     };
                 }
             }
+            KeyCode::Char('g') => {
+                if self.title != "not found" && !self.title.is_empty() {
+                    let current_line = self.scroll_position + 1;
+                    let repository = self.repository.lock().unwrap();
+                    if let Err(e) = repository.open_file_in_browser(&self.title, current_line) {
+                        return Message::Error {
+                            _message: format!("Failed to open in browser: {}", e),
+                        };
+                    }
+                }
+            }
             _ => {}
         }
         Message::NoAction
