@@ -16,18 +16,52 @@ cargo install gview
 
 # default keymap
 
+## Global Keys
 | Key | Description |
 | --- | ----------- |
-| <kbd>Enter</kbd> in Match | Jump to the file list |
-| <kbd>Enter</kbd> in File List | Open the selected file |
-| <kbd>↑</kbd>, <kbd>↓</kbd> in Match | Navigate filter options |
-| <kbd>↑</kbd>, <kbd>↓</kbd> in File List | Navigate through files |
-| <kbd>↑</kbd>, <kbd>↓</kbd> in Commit ID | Switch between commits |
-| <kbd>↑</kbd>, <kbd>↓</kbd> in File Contents | Scroll through file content |
-| <kbd>Tab</kbd> | Move to the next section |
-| <kbd>←</kbd>, <kbd>→</kbd> in File List | Scroll file names horizontally |
-| <kbd>o</kbd> in File Contents | Toggle display mode (line numbers → blame → no lines) |
-| <kbd>g</kbd> in File Contents | Open current file in browser at current commit and line |
+| <kbd>?</kbd> | Show help modal with all key bindings |
+| <kbd>Tab</kbd> | Switch focus between panels |
+| <kbd>Ctrl+C</kbd> | Exit gview |
+| <kbd><</kbd> | Decrease left panel width |
+| <kbd>></kbd> | Increase left panel width |
+| <kbd>ESC</kbd> | Close help modal (when open) |
+
+## Filter Panel
+| Key | Description |
+| --- | ----------- |
+| <kbd>Enter</kbd> | Apply filter |
+| <kbd>Ctrl+A</kbd> | Select all text |
+
+## File List Panel
+| Key | Description |
+| --- | ----------- |
+| <kbd>↑</kbd>, <kbd>↓</kbd>, <kbd>j</kbd>, <kbd>k</kbd> | Navigate through files |
+| <kbd>Enter</kbd> | Select file |
+
+## Commit Panel
+| Key | Description |
+| --- | ----------- |
+| <kbd>o</kbd> | Open commit modal |
+
+## Content Viewer
+| Key | Description |
+| --- | ----------- |
+| <kbd>↑</kbd>, <kbd>↓</kbd>, <kbd>j</kbd>, <kbd>k</kbd> | Scroll content vertically |
+| <kbd>←</kbd>, <kbd>→</kbd>, <kbd>h</kbd>, <kbd>l</kbd> | Scroll content horizontally |
+| <kbd>b</kbd> | Toggle blame view |
+| <kbd>n</kbd> | Toggle line numbers |
+| <kbd>g</kbd> | Open current file in browser at current commit and line |
+
+## Help Modal
+
+Press <kbd>?</kbd> at any time to open an interactive help modal that displays all available key bindings. The help modal:
+
+- Shows context-sensitive help organized by panel
+- Works in any terminal size (responsive design)
+- Features a clean double-line border design
+- Can be closed by pressing <kbd>ESC</kbd>
+
+This makes it easy to learn and remember all the keyboard shortcuts without leaving the application.
 
 ## Browser Integration
 

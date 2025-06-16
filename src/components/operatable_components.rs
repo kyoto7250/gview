@@ -58,6 +58,8 @@ pub enum OnceOperation {
     OpenCommitModal,
     CloseCommitModal,
     SetCommitById { commit_id: String },
+    ShowHelpModal,
+    CloseHelpModal,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

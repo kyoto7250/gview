@@ -5,6 +5,7 @@ use crate::{
         content_viewer::ContentViewer,
         filer::Filer,
         filter::Filter,
+        help_modal::HelpModal,
         operatable_components::{
             Message, MultipleTimesOperation, OnceOperation, OperatableComponent,
         },
@@ -56,6 +57,7 @@ pub struct App {
     commit_viewer: CommitViewer,
     content_viewer: ContentViewer,
     commit_modal: CommitModal,
+    help_modal: HelpModal,
 }
 
 impl App {
@@ -73,6 +75,7 @@ impl App {
             commit_viewer: CommitViewer::new(Arc::clone(&repository)),
             content_viewer: ContentViewer::new(Arc::clone(&repository)),
             commit_modal: CommitModal::new(Arc::clone(&repository)),
+            help_modal: HelpModal::new(),
         };
         app.handle_message(Message::MultipleTimes(MultipleTimesOperation::SetUp {
             repository: Arc::clone(&repository),
@@ -90,7 +93,12 @@ impl App {
     }
 
     fn process_events(&mut self, code: KeyCode) -> Message {
-        // If modal is open, handle modal events first
+        // If help modal is open, handle help modal events first
+        if self.help_modal.is_open() {
+            return self.help_modal.process_events(code);
+        }
+
+        // If commit modal is open, handle commit modal events next
         if self.commit_modal.is_open() {
             return self.commit_modal.process_events(code);
         }
@@ -148,6 +156,9 @@ impl App {
 
         let new_message = self.commit_modal.handle_message(&message);
         self.handle_message(new_message);
+
+        let new_message = self.help_modal.handle_message(&message);
+        self.handle_message(new_message);
     }
 
     pub fn run(&mut self, terminal: &mut Tui) -> io::Result<()> {
@@ -196,6 +207,10 @@ impl App {
                             self.left_main_chunk_percentage =
                                 (self.left_main_chunk_percentage + 5).min(70);
                         }
+                        event::KeyEvent {
+                            code: event::KeyCode::Char('?'),
+                            ..
+                        } => self.handle_message(Message::Once(OnceOperation::ShowHelpModal)),
                         _ => {
                             let message = self.process_events(event.code);
                             self.handle_message(message)
@@ -233,8 +248,9 @@ impl App {
         self.commit_viewer.draw(frame, right_chunks[0]);
         self.content_viewer.draw(frame, right_chunks[1]);
 
-        // Draw modal on top if it's open
+        // Draw modals on top if they're open
         self.commit_modal.draw(frame, frame.size());
+        self.help_modal.draw(frame, frame.size());
 
         Ok(())
     }
@@ -268,5 +284,284 @@ mod tests {
 
         state = state.next();
         assert_eq!(state, FocusState::Filter); // Back to start
+    }
+
+    #[test]
+    fn test_app_draw_normal_state() {
+        use crate::repository::RepositoryInfo;
+        use insta::assert_snapshot;
+        use ratatui::{backend::TestBackend, Terminal};
+        use std::env;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let random_suffix = std::process::id();
+        let test_dir =
+            env::temp_dir().join(format!("gview_app_test_{}_{}", timestamp, random_suffix));
+        let _ = std::fs::remove_dir_all(&test_dir);
+        std::fs::create_dir_all(&test_dir).unwrap();
+
+        let repo = git2::Repository::init(&test_dir).unwrap();
+
+        // Create a test file
+        let test_file_path = test_dir.join("test.txt");
+        std::fs::write(&test_file_path, "Hello, world!").unwrap();
+
+        let signature = git2::Signature::new(
+            "Test User",
+            "test@localhost",
+            &git2::Time::new(1234567890, 0),
+        )
+        .unwrap();
+        let tree_id = {
+            let mut index = repo.index().unwrap();
+            index.add_path(std::path::Path::new("test.txt")).unwrap();
+            index.write().unwrap();
+            index.write_tree().unwrap()
+        };
+        let tree = repo.find_tree(tree_id).unwrap();
+
+        let _ = repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "Initial commit",
+            &tree,
+            &[],
+        );
+
+        drop(tree);
+        let oid = repo.head().unwrap().target().unwrap();
+        let repo_info = RepositoryInfo::_from_parts(repo, oid);
+
+        let mut app = App::new(repo_info);
+
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|frame| {
+                let _ = app.draw(frame);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        assert_snapshot!(format!("{:?}", buffer));
+    }
+
+    #[test]
+    fn test_app_draw_with_help_modal_open() {
+        use crate::repository::RepositoryInfo;
+        use insta::assert_snapshot;
+        use ratatui::{backend::TestBackend, Terminal};
+        use std::env;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let random_suffix = std::process::id();
+        let test_dir = env::temp_dir().join(format!(
+            "gview_app_help_test_{}_{}",
+            timestamp, random_suffix
+        ));
+        let _ = std::fs::remove_dir_all(&test_dir);
+        std::fs::create_dir_all(&test_dir).unwrap();
+
+        let repo = git2::Repository::init(&test_dir).unwrap();
+
+        // Create a test file
+        let test_file_path = test_dir.join("test.txt");
+        std::fs::write(&test_file_path, "Hello, world!").unwrap();
+
+        let signature = git2::Signature::new(
+            "Test User",
+            "test@localhost",
+            &git2::Time::new(1234567890, 0),
+        )
+        .unwrap();
+        let tree_id = {
+            let mut index = repo.index().unwrap();
+            index.add_path(std::path::Path::new("test.txt")).unwrap();
+            index.write().unwrap();
+            index.write_tree().unwrap()
+        };
+        let tree = repo.find_tree(tree_id).unwrap();
+
+        let _ = repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "Initial commit",
+            &tree,
+            &[],
+        );
+
+        drop(tree);
+        let oid = repo.head().unwrap().target().unwrap();
+        let repo_info = RepositoryInfo::_from_parts(repo, oid);
+
+        let mut app = App::new(repo_info);
+
+        // Open help modal
+        app.handle_message(Message::Once(OnceOperation::ShowHelpModal));
+
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|frame| {
+                let _ = app.draw(frame);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        assert_snapshot!(format!("{:?}", buffer));
+    }
+
+    #[test]
+    fn test_app_draw_help_modal_large_terminal() {
+        use crate::repository::RepositoryInfo;
+        use insta::assert_snapshot;
+        use ratatui::{backend::TestBackend, Terminal};
+        use std::env;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let random_suffix = std::process::id();
+        let test_dir = env::temp_dir().join(format!(
+            "gview_app_large_test_{}_{}",
+            timestamp, random_suffix
+        ));
+        let _ = std::fs::remove_dir_all(&test_dir);
+        std::fs::create_dir_all(&test_dir).unwrap();
+
+        let repo = git2::Repository::init(&test_dir).unwrap();
+
+        // Create a test file
+        let test_file_path = test_dir.join("test.txt");
+        std::fs::write(&test_file_path, "Hello, world!").unwrap();
+
+        let signature = git2::Signature::new(
+            "Test User",
+            "test@localhost",
+            &git2::Time::new(1234567890, 0),
+        )
+        .unwrap();
+        let tree_id = {
+            let mut index = repo.index().unwrap();
+            index.add_path(std::path::Path::new("test.txt")).unwrap();
+            index.write().unwrap();
+            index.write_tree().unwrap()
+        };
+        let tree = repo.find_tree(tree_id).unwrap();
+
+        let _ = repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "Initial commit",
+            &tree,
+            &[],
+        );
+
+        drop(tree);
+        let oid = repo.head().unwrap().target().unwrap();
+        let repo_info = RepositoryInfo::_from_parts(repo, oid);
+
+        let mut app = App::new(repo_info);
+
+        // Open help modal
+        app.handle_message(Message::Once(OnceOperation::ShowHelpModal));
+
+        let backend = TestBackend::new(150, 50);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|frame| {
+                let _ = app.draw(frame);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        assert_snapshot!(format!("{:?}", buffer));
+    }
+
+    #[test]
+    fn test_app_draw_help_modal_small_terminal() {
+        use crate::repository::RepositoryInfo;
+        use insta::assert_snapshot;
+        use ratatui::{backend::TestBackend, Terminal};
+        use std::env;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let random_suffix = std::process::id();
+        let test_dir = env::temp_dir().join(format!(
+            "gview_app_small_test_{}_{}",
+            timestamp, random_suffix
+        ));
+        let _ = std::fs::remove_dir_all(&test_dir);
+        std::fs::create_dir_all(&test_dir).unwrap();
+
+        let repo = git2::Repository::init(&test_dir).unwrap();
+
+        // Create a test file
+        let test_file_path = test_dir.join("test.txt");
+        std::fs::write(&test_file_path, "Hello, world!").unwrap();
+
+        let signature = git2::Signature::new(
+            "Test User",
+            "test@localhost",
+            &git2::Time::new(1234567890, 0),
+        )
+        .unwrap();
+        let tree_id = {
+            let mut index = repo.index().unwrap();
+            index.add_path(std::path::Path::new("test.txt")).unwrap();
+            index.write().unwrap();
+            index.write_tree().unwrap()
+        };
+        let tree = repo.find_tree(tree_id).unwrap();
+
+        let _ = repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "Initial commit",
+            &tree,
+            &[],
+        );
+
+        drop(tree);
+        let oid = repo.head().unwrap().target().unwrap();
+        let repo_info = RepositoryInfo::_from_parts(repo, oid);
+
+        let mut app = App::new(repo_info);
+
+        // Open help modal
+        app.handle_message(Message::Once(OnceOperation::ShowHelpModal));
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|frame| {
+                let _ = app.draw(frame);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        assert_snapshot!(format!("{:?}", buffer));
     }
 }

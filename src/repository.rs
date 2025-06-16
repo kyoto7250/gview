@@ -7,7 +7,7 @@ use std::{
 
 const MAX_FILE_SIZE: usize = 16 * 1024; // 16KB
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CommitRow {
     pub _author: String,
     pub commit: Oid,
