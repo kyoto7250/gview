@@ -1,7 +1,6 @@
 # claude.md
 
 ## ✅ Snapshot Testing Policy (`cargo insta`)
-
 - Use snapshot tests **only** for full-screen TUI rendering or complete standard output/error.
 - Do **not** apply snapshot tests to struct methods or logic-level units.
 - Snapshot tests must capture **entire outputs**, not partial sections.
