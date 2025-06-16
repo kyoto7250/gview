@@ -2,6 +2,7 @@ use git2::{Commit, ObjectType, Oid, Repository, TreeWalkMode, TreeWalkResult};
 use std::{
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
+    process::Command,
 };
 
 const MAX_FILE_SIZE: usize = 16 * 1024; // 16KB
@@ -217,6 +218,74 @@ impl RepositoryInfo {
         });
 
         Ok(results)
+    }
+
+    pub fn get_origin_url(&self) -> anyhow::Result<String> {
+        let config = self.repository.config()?;
+        let url = config.get_string("remote.origin.url")?;
+        Ok(url)
+    }
+
+    pub fn open_file_in_browser(&self, file_path: &str, line_number: usize) -> anyhow::Result<()> {
+        let origin_url = self.get_origin_url()?;
+        let github_url = self.construct_github_url(&origin_url, file_path, line_number)?;
+
+        self.open_url_in_browser(&github_url)?;
+        Ok(())
+    }
+
+    fn construct_github_url(
+        &self,
+        origin_url: &str,
+        file_path: &str,
+        line_number: usize,
+    ) -> anyhow::Result<String> {
+        let (base_url, repo_path) = if origin_url.starts_with("git@") {
+            // SSH format: git@github.com:owner/repo.git
+            let url_without_prefix = origin_url.strip_prefix("git@").unwrap();
+            let parts: Vec<&str> = url_without_prefix.split(':').collect();
+            if parts.len() != 2 {
+                return Err(anyhow::anyhow!("Invalid SSH URL format"));
+            }
+            let host = parts[0];
+            let repo_path = parts[1].strip_suffix(".git").unwrap_or(parts[1]);
+            (format!("https://{}", host), repo_path.to_string())
+        } else if origin_url.starts_with("https://") {
+            // HTTPS format: https://github.com/owner/repo.git
+            let url_without_https = origin_url.strip_prefix("https://").unwrap();
+            let parts: Vec<&str> = url_without_https.splitn(2, '/').collect();
+            if parts.len() != 2 {
+                return Err(anyhow::anyhow!("Invalid HTTPS URL format"));
+            }
+            let host = parts[0];
+            let repo_path = parts[1].strip_suffix(".git").unwrap_or(parts[1]);
+            (format!("https://{}", host), repo_path.to_string())
+        } else {
+            return Err(anyhow::anyhow!("Unsupported URL format"));
+        };
+
+        let commit_id = self.oid.to_string();
+        let url = format!(
+            "{}/{}/blob/{}/{}#L{}",
+            base_url, repo_path, commit_id, file_path, line_number
+        );
+        Ok(url)
+    }
+
+    fn open_url_in_browser(&self, url: &str) -> anyhow::Result<()> {
+        #[cfg(target_os = "macos")]
+        {
+            Command::new("open").arg(url).spawn()?;
+        }
+        #[cfg(target_os = "linux")]
+        {
+            Command::new("xdg-open").arg(url).spawn()?;
+        }
+        #[cfg(target_os = "windows")]
+        {
+            Command::new("cmd").args(["/c", "start", url]).spawn()?;
+        }
+        Ok(())
     }
 }
 
@@ -546,5 +615,104 @@ mod tests {
         // Should remain the same as there's no next commit
         assert_eq!(original_oid, repo_info.oid);
         assert_eq!(result.1, "Initial commit");
+    }
+
+    #[test]
+    fn test_construct_github_url_ssh() {
+        let repo = setup_empty_repo();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let ssh_url = "git@github.com:owner/repo.git";
+        let result = repo_info
+            .construct_github_url(ssh_url, "src/main.rs", 42)
+            .unwrap();
+        let expected = format!(
+            "https://github.com/owner/repo/blob/{}/src/main.rs#L42",
+            head_commit
+        );
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_construct_github_url_https() {
+        let repo = setup_empty_repo();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let https_url = "https://github.com/owner/repo.git";
+        let result = repo_info
+            .construct_github_url(https_url, "README.md", 1)
+            .unwrap();
+        let expected = format!(
+            "https://github.com/owner/repo/blob/{}/README.md#L1",
+            head_commit
+        );
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_construct_github_url_enterprise() {
+        let repo = setup_empty_repo();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let enterprise_url = "git@github.enterprise.com:team/project.git";
+        let result = repo_info
+            .construct_github_url(enterprise_url, "lib/utils.rs", 100)
+            .unwrap();
+        let expected = format!(
+            "https://github.enterprise.com/team/project/blob/{}/lib/utils.rs#L100",
+            head_commit
+        );
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_construct_github_url_without_git_suffix() {
+        let repo = setup_empty_repo();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let url_without_git = "git@github.com:owner/repo";
+        let result = repo_info
+            .construct_github_url(url_without_git, "test.py", 5)
+            .unwrap();
+        let expected = format!(
+            "https://github.com/owner/repo/blob/{}/test.py#L5",
+            head_commit
+        );
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_construct_github_url_invalid_format() {
+        let repo = setup_empty_repo();
+        let head_commit = repo.head().unwrap().target().unwrap();
+
+        let repo_info = RepositoryInfo {
+            repository: repo,
+            oid: head_commit,
+        };
+
+        let invalid_url = "invalid-url-format";
+        let result = repo_info.construct_github_url(invalid_url, "file.txt", 1);
+        assert!(result.is_err());
     }
 }
